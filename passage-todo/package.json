@@ -1,0 +1,7 @@
+{
+  "name": "passage-todo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "結婚式場バック担当向けの進行ToDo・印刷ツール",
+  "scripts": { "test": "node --test tests/*.test.js", "start": "python3 -m http.server 4173 --bind 127.0.0.1" }
+}

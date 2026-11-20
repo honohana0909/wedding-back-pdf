@@ -1,5 +1,5 @@
 // Source: バック業務確認チェックリスト.xlsx / 業務確認チェックリスト
-// Visible cell text preserved. Phonetic guides are not cell content.
+// Base checklist with user-requested timing and bread-service updates. IDs stay stable for saved edits.
 (function(root) {
   const rows = [
   {
@@ -203,7 +203,7 @@
     "category": "共通",
     "title": "ビアンドに備えてウォーマーを1Fへ上げる",
     "start": "ポアソン提供後",
-    "deadline": "ビアンド前",
+    "deadline": "ビアンドまで",
     "place": "B1→1F",
     "equipment": "ウォーマー",
     "contact": "料理担当",
@@ -215,7 +215,7 @@
   {
     "id": "excel-16",
     "row": 16,
-    "category": "洋コース",
+    "category": "パン",
     "title": "バターを確認・準備する",
     "start": "先付け開始時間",
     "deadline": "先付け",
@@ -260,7 +260,7 @@
   {
     "id": "excel-19",
     "row": 19,
-    "category": "洋コース",
+    "category": "パン",
     "title": "パン用ウォーマーを準備する",
     "start": "出勤後",
     "deadline": "開場前",
@@ -305,10 +305,10 @@
   {
     "id": "excel-22",
     "row": 22,
-    "category": "洋コース",
-    "title": "パンを1Fへ上げる",
-    "start": "HOV提供後",
-    "deadline": "スープ前",
+    "category": "パン",
+    "title": "パンを1Fへ上げる（1回目・スープ後）",
+    "start": "スープ提供後",
+    "deadline": "スープ提供後",
     "place": "",
     "equipment": "",
     "contact": "料理担当",
@@ -320,10 +320,10 @@
   {
     "id": "excel-23",
     "row": 23,
-    "category": "洋コース",
-    "title": "パンを1Fへ上げる",
-    "start": "スープ提供後",
-    "deadline": "ポアソン前",
+    "category": "パン",
+    "title": "パンを1Fへ上げる（2回目・魚後）",
+    "start": "ポアソン提供後",
+    "deadline": "ポアソン提供後",
     "place": "",
     "equipment": "",
     "contact": "料理担当",

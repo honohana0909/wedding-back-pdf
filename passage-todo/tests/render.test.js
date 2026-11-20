@@ -74,3 +74,24 @@ test('全件を印刷し、未完了などの表示フィルターはPDFに影�
     }
   }
 });
+
+test('既存ToDoの進行名が表示され、和洋会席のパン切替が画面とPDFに反映される', () => {
+  const s=E.initialState();s.course='mixed';
+  const a=app(s);
+  assert.ok(a.node('#option-fields').innerHTML.includes('パンを追加'));
+  assert.ok(a.node('#time-fields').innerHTML.includes('セットアップ'));
+  assert.ok(!a.node('#todo-list').innerHTML.includes('進行未指定'));
+  assert.ok(!a.node('#todo-list').innerHTML.includes('1回目・スープ後'));
+  a.handlers.change({target:{dataset:{option:'bread'},checked:true}});
+  for(const id of ['#todo-list','#print-document']) {
+    const html=a.node(id).innerHTML;
+    assert.ok(html.includes('1回目・スープ後'));assert.ok(html.includes('2回目・魚後'));
+    assert.ok(!html.includes('進行未指定'));
+  }
+  assert.ok(a.node('#time-fields').innerHTML.includes('スープ提供完了'));
+  a.handlers.change({target:{dataset:{},name:'course',value:'western'}});
+  assert.ok(!a.node('#option-fields').innerHTML.includes('パンを追加'));
+  assert.ok(!a.node('#print-document').innerHTML.includes('パンを追加'));
+  assert.ok(a.node('#todo-list').innerHTML.includes('HOV提供完了'));
+  assert.ok(!a.node('#todo-list').innerHTML.includes('進行未指定'));
+});

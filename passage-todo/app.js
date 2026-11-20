@@ -30,8 +30,11 @@
   function fillSetup() {
     document.querySelectorAll('[data-state]').forEach(el => { el.value = state[el.dataset.state]; });
     document.querySelectorAll('[name=course]').forEach(el => { el.checked = el.value === state.course; });
-    $('#option-fields').innerHTML = E.options.map(([id, label]) => `<label><input type="checkbox" data-option="${id}" ${state.options[id] ? 'checked' : ''}>${esc(label)}</label>`).join('');
+    renderOptions();
     renderTimes();
+  }
+  function renderOptions() {
+    $('#option-fields').innerHTML = E.activeOptions(state).map(([id, label]) => `<label><input type="checkbox" data-option="${id}" ${state.options[id] ? 'checked' : ''}>${esc(label)}</label>`).join('');
   }
   function renderTimes() {
     $('#time-fields').innerHTML = E.activeEvents(state).map(event => `<label class="time-field">${esc(event.label)}<input type="time" data-time="${event.id}" value="${esc(state.times[event.id] || '')}" aria-label="${esc(event.label)}の時刻"></label>`).join('');
@@ -151,7 +154,7 @@ function printSupplement(row) {
   }
   function buildPrint(items = E.generate(rows, state)) {
     const included = E.printable(items, state);
-    const conditions = E.options.filter(([id]) => state.options[id]).map(([,label]) => label);
+    const conditions = E.activeOptions(state).filter(([id]) => state.options[id]).map(([,label]) => label);
     const flow = E.activeEvents(state).slice().sort((a,b) => (E.minutes(state.times[a.id]) ?? Infinity) - (E.minutes(state.times[b.id]) ?? Infinity) || a.rank-b.rank);
     $('#print-document').innerHTML = `<div class="print-header"><div class="print-brand">当日の作業メモ</div><h1>${esc(state.name || '当日のバック業務ToDo')}</h1><p>${esc([state.date || '日付未入力',state.venue && `会場：${state.venue}`,state.staff && `担当：${state.staff}`].filter(Boolean).join('　'))}</p><p class="print-info">${state.course === 'western' ? '洋コース' : '和洋会席'} ｜ ${esc(conditions.join('・') || '追加条件なし')} ｜ ${state.order === 'time' ? '時刻順' : '進行順'}</p></div>
       <div class="print-flow">${flow.map(e => `<span>${esc(state.times[e.id] || '未入力')} ${esc(e.label)}</span>`).join('')}</div>
@@ -199,7 +202,7 @@ function printSupplement(row) {
   document.addEventListener('change', event => {
     const target = event.target;
     if (target.dataset.state) state[target.dataset.state] = target.value;
-    else if (target.name === 'course') { state.course = target.value; renderTimes(); }
+    else if (target.name === 'course') { state.course = target.value; renderOptions(); renderTimes(); }
     else if (target.dataset.option) { state.options[target.dataset.option] = target.checked; renderTimes(); }
     else if (target.dataset.time) state.times[target.dataset.time] = target.value;
     else if (target.dataset.done) {

@@ -3,22 +3,26 @@
   const options = [
     ['obire', '尾鰭椀'], ['dessert', 'デザートビュッフェ'], ['beef', 'ローストビーフ'],
     ['tempura', '天ぷら'], ['lunch', '子ランチ'], ['hamburg', '子バーグ'],
-    ['childCourse', '子コース'], ['event', 'イベント・余興']
+    ['childCourse', '子コース'], ['event', 'イベント・余興'], ['bread', 'パンを追加']
   ];
   // Order is an editable day's reference sequence, never an invented clock time.
   const events = [
     ['arrival', '出勤', 'common'], 
     ['meeting', 'MTG', 'common'],
     ['preplate', '先付け開始', 'common'], 
-    ['setup', 'セットアップ', 'mixed'],
+    ['preplateEnd', '先付け完了', 'mixed'],
+    ['setup', 'セットアップ', 'common'],
     ['open', '開場', 'common'], 
     ['obire', '尾鰭椀', 'obire'],
     ['entrance', '新郎新婦入場／披露宴開始', 'common'],
     ['toast', '乾杯', 'common'],
-    ['hov', 'HOV', 'western'], 
+    ['hov', 'HOV', 'western'],
+    ['hovEnd', 'HOV提供完了', 'western'], 
     ['sashimi', '刺身提供', 'mixed'], 
     ['soup', 'スープ', 'western'],
+    ['soupEnd', 'スープ提供完了', 'western'],
     ['fish', 'ポアソン', 'common'],
+    ['fishEnd', 'ポアソン提供完了', 'common'],
     ['meat', 'ビアンド', 'common'],
     ['beef', 'ローストビーフ提供', 'beef'], 
     ['tempura', '天ぷら提供', 'tempura'],
@@ -44,15 +48,15 @@
     12: ['toast', 1, null, 0], 
     13: [null, 0, null, 0, 'ongoing'],
     14: ['toast', 1, 'fish', -1], 
-    15: ['fishEnd', 1, 'meat', -1],
+    15: ['fishEnd', 1, 'meat', 0],
     16: ['preplate', 0, 'preplate', 0], 
     17: ['preplate', 0, 'preplate', 0],
     18: ['arrival', 1, 'open', -1], 
     19: ['arrival', 1, 'open', -1],
     20: ['open', 1, 'toast', -1], 
     21: ['hovEnd', 1, 'soup', -1],
-    22: ['hovEnd', 1, 'soup', -1], 
-    23: ['soupEnd', 1, 'fish', -1],
+    22: ['soupEnd', 1, 'soupEnd', 1], 
+    23: ['fishEnd', 1, 'fishEnd', 1],
     24: ['preplate', 0, 'preplate', 0], 
     25: [null, 0, 'preplate', 0],
     26: [null, 0, 'preplate', 0], 
@@ -92,9 +96,14 @@
   const minutes = value => validTime(value) ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
   const children = state => ['lunch', 'hamburg', 'childCourse'].some(key => state.options[key]);
   function activeEvents(state) {
-    return events.filter(e => e.condition === 'common' || e.condition === state.course || state.options[e.condition]);
+    return events.filter(e => e.condition === 'common' || e.condition === state.course || state.options[e.condition]
+      || (state.course === 'mixed' && state.options.bread && ['soup', 'soupEnd'].includes(e.id)));
+  }
+  function activeOptions(state) {
+    return options.filter(([id]) => id !== 'bread' || state.course === 'mixed');
   }
   function applies(row, state) {
+    if (row.category === 'パン') return state.course === 'western' || (state.course === 'mixed' && !!state.options.bread);
     if (row.category === '共通') return true;
     if (row.category === '洋コース') return state.course === 'western';
     if (row.category === '和洋会席') return state.course === 'mixed';
@@ -166,7 +175,7 @@
     }
     return state;
   }
-  const api = { options, events, eventMap, timing, initialState, validTime, minutes, activeEvents, applies, generate, printable, normalizeState };
+  const api = { options, events, eventMap, timing, initialState, validTime, minutes, activeEvents, activeOptions, applies, generate, printable, normalizeState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PassageEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

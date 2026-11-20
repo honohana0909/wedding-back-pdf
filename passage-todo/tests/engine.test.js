@@ -14,18 +14,19 @@ test('Excelの52項目と空欄、変更済みの内容を保持する', () => {
   assert.equal(rows.find(r => r.row === 36).deadline, '開場前');
   assert.equal(rows.find(r => r.row === 39).equipment, '出皿・レードル');
   assert.equal(rows.find(r => r.row === 42).equipment, '箸・塩のスプーン');
-  assert.equal(rows.filter(r => r.title === 'パンを1Fへ上げる').length, 2);
+  assert.equal(rows.filter(r => r.title.startsWith('パンを1Fへ上げる')).length, 2);
   assert.ok(!JSON.stringify(rows).includes('パティスリー'));
 });
 
-test('2コース×8条件の全512通りで対象件数と固有項目が一致する', () => {
-  for (const course of ['western','mixed']) for (let mask=0; mask<256; mask++) {
+test('2コース×9条件の全1024通りで対象件数と固有項目が一致する', () => {
+  for (const course of ['western','mixed']) for (let mask=0; mask<(1<<E.options.length); mask++) {
     const s=E.initialState(); s.course=course;
     E.options.forEach(([id],i) => { s.options[id]=!!(mask & (1<<i)); });
     const items=E.generate(rows,s);
     const n=Number(s.options.lunch)+Number(s.options.hamburg)+Number(s.options.childCourse);
     const expected=14+(course==='western'?8:6)+4*Number(s.options.obire)+4*Number(s.options.dessert)
-      +3*Number(s.options.beef)+3*Number(s.options.tempura)+5*Number(s.options.event)+n+(n?2:0);
+      +3*Number(s.options.beef)+3*Number(s.options.tempura)+5*Number(s.options.event)+n+(n?2:0)
+      +(course==='mixed' && s.options.bread ? 4 : 0);
     assert.equal(items.length,expected,`${course}/${mask}`);
     assert.equal(new Set(items.map(r=>r.id)).size,items.length);
     assert.equal(items.some(r=>r.row===44),s.options.lunch);
@@ -33,7 +34,12 @@ test('2コース×8条件の全512通りで対象件数と固有項目が一致�
     assert.equal(items.some(r=>r.row===47),s.options.childCourse);
     assert.equal(items.some(r=>r.row===45),n>0);
     assert.equal(items.some(r=>r.row===24),course==='mixed');
-    assert.equal(items.some(r=>r.row===16),course==='western');
+    assert.equal(items.some(r=>r.row===16),course==='western' || s.options.bread);
+    const active = new Set(E.activeEvents(s).map(e=>e.id));
+    for(const row of items) {
+      assert.ok(row.group==='ongoing' || active.has(row.group),`${course}/${mask}: missing group ${row.group}`);
+      for(const anchor of [row.startId,row.dueId].filter(Boolean)) assert.ok(active.has(anchor),`${row.id}: missing anchor ${anchor}`);
+    }
   }
 });
 
@@ -148,4 +154,56 @@ test('保存データの独自ToDo IDは安全な文字だけを受け付ける'
   const s=E.initialState();
   s.custom=[{id:'custom-valid-1',title:'正常'}, {id:'custom-\" onclick=\"alert(1)',title:'不正'}, {id:'custom-<script>',title:'不正'}];
   assert.deepEqual(E.normalizeState(s).custom.map(r=>r.id),['custom-valid-1']);
+});
+
+test('セットアップは両方のコースで共通の進行時刻として保存できる', () => {
+  for(const course of ['western','mixed']) {
+    const s=E.initialState();s.course=course;s.times.setup='11:40';
+    assert.ok(E.activeEvents(s).some(e=>e.id==='setup'));
+    assert.equal(E.normalizeState(JSON.parse(JSON.stringify(s))).times.setup,'11:40');
+  }
+});
+
+test('ビアンド用ウォーマーの期限はビアンド時刻まで', () => {
+  const s=E.initialState();s.times={fishEnd:'13:20',meat:'13:40'};
+  const row=get(s,15);
+  assert.equal(row.group,'fishEnd');
+  assert.equal(row.startTime,'13:20');
+  assert.equal(row.deadline,'ビアンドまで');
+  assert.equal(row.dueId,'meat');assert.equal(row.dueRelation,0);assert.equal(row.dueTime,'13:40');
+});
+
+test('パンはスープ後と魚後の2回で、和洋会席にはオプションで準備ごと追加する', () => {
+  for(const course of ['western','mixed']) for(const bread of [false,true]) {
+    const s=E.initialState();s.course=course;s.options.bread=bread;
+    s.times={soupEnd:'13:00',fishEnd:'13:30'};
+    const items=E.generate(rows,s);
+    const breadRows=items.filter(r=>r.category==='パン');
+    const enabled=course==='western'||bread;
+    assert.equal(breadRows.length,enabled?4:0);
+    assert.equal(E.activeOptions(s).some(([id])=>id==='bread'),course==='mixed');
+    assert.equal(E.activeEvents(s).some(e=>e.id==='soupEnd'),enabled);
+    if(!enabled) continue;
+    const first=get(s,22), second=get(s,23);
+    assert.equal(first.group,'soupEnd');assert.equal(first.startTime,'13:00');
+    assert.equal(second.group,'fishEnd');assert.equal(second.startTime,'13:30');
+    assert.equal(first.start,'スープ提供後');assert.equal(second.start,'ポアソン提供後');
+    assert.ok(items.findIndex(r=>r.row===22)<items.findIndex(r=>r.row===23));
+    assert.ok(!first.issues.some(x=>x.includes('入力時刻')));
+    assert.ok(!second.issues.some(x=>x.includes('入力時刻')));
+    assert.ok(E.printable(items,s).some(r=>r.row===22));
+    assert.ok(E.printable(items,s).some(r=>r.row===23));
+  }
+});
+
+test('和洋会席のパン設定・完了時刻・既存のメモとチェックは保存復元される', () => {
+  const s=E.initialState();s.course='mixed';s.options.bread=true;
+  s.times={preplateEnd:'11:20',setup:'11:30',soupEnd:'13:00',fishEnd:'13:30'};
+  s.edits['excel-22']={note:'担当と数量を確認',done:true,equipment:'パン用トング'};
+  const restored=E.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(restored.times,s.times);assert.equal(restored.options.bread,true);
+  const row=get(restored,22);
+  assert.equal(row.note,'担当と数量を確認');assert.equal(row.done,true);assert.equal(row.equipment,'パン用トング');
+  restored.course='western';assert.ok(get(restored,22));
+  restored.course='mixed';restored.options.bread=false;assert.ok(!get(restored,22));
 });

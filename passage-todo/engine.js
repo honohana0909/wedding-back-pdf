@@ -114,16 +114,15 @@
     const startTime = startManual || (startId && state.times[startId]) || '';
     const dueTime = dueManual || (dueId && state.times[dueId]) || '';
     const group = custom ? row.stage || 'unassigned' : groupOverride || startId || dueId || 'unassigned';
-    const pdf = Object.hasOwn(edit, 'pdf') ? edit.pdf : row.pdf;
+    // All tasks applicable to this wedding are included, including legacy exclusions.
+    const pdf = '○';
     const issues = [];
-    if (!custom && row.status !== '確定') issues.push(row.status ? `確認状態：${row.status}` : '確認状態が未記入');
-    if (pdf === '') issues.push('PDF掲載が未指定');
-    if (row.revision) issues.push('原票に修正内容あり');
+    if (row.revision) issues.push('確認が必要な変更内容あり');
     if (!custom && (!row.start || !row.deadline)) issues.push('開始または期限が未記入');
     if (row.row === 36)
-      issues.push('原票の開始「披露宴開始後〜デザート前」と期限「開場前」の前後関係を要確認');
+      issues.push('開始「披露宴開始後〜デザート前」と期限「開場前」の前後関係を要確認');
     if (row.row === 53)
-      issues.push('原票の開始「イベント開始前」と期限「開場前」の前後関係を要確認');
+      issues.push('開始「イベント開始前」と期限「開場前」の前後関係を要確認');
     const a = minutes(startTime), b = minutes(dueTime);
     if (a !== null && b !== null && (a > b || (a === b && !startManual && !dueManual && startRelation > dueRelation)))
       issues.push('入力時刻では開始基準が期限基準より後です');
@@ -141,7 +140,7 @@
         : a.rank - b.rank || a.sortRelation - b.sortRelation || a.index - b.index);
   }
   function printable(items, state) {
-    return items.filter(row => row.pdf === '○' || row.pdf === '△' || (row.pdf === '' && state.includeUnset));
+    return items.slice();
   }
   function normalizeState(value) {
     if (!value || value.version !== 1 || !['western', 'mixed'].includes(value.course)) throw new Error('保存形式が対応していません');
@@ -153,14 +152,14 @@
     for (const [key] of options) state.options[key] = value.options?.[key] === true;
     for (const event of events) if (validTime(value.times?.[event.id])) state.times[event.id] = value.times[event.id];
     if (Array.isArray(value.custom)) state.custom = value.custom.filter(r => r && typeof r.id === 'string'
-      && r.id.startsWith('custom-') && typeof r.title === 'string' && r.title.trim()).map(r => ({
+      && /^custom-[\w-]+$/.test(r.id) && typeof r.title === 'string' && r.title.trim()).map(r => ({
         id: r.id, custom: true, category: '独自ToDo', title: r.title, start: '', deadline: '',
         stage: eventMap[r.stage] ? r.stage : '', pdf: '○', status: '独自', caution: '', revision: ''
       }));
     if (value.edits && typeof value.edits === 'object') for (const [id, edit] of Object.entries(value.edits)) {
       if (!/^(excel-\d+|custom-[\w-]+)$/.test(id) || !edit || typeof edit !== 'object') continue;
       const safe = { done: edit.done === true };
-      for (const key of ['note', 'title']) if (typeof edit[key] === 'string') safe[key] = edit[key];
+      for (const key of ['note', 'title', 'equipment', 'place', 'contact', 'caution']) if (typeof edit[key] === 'string') safe[key] = edit[key];
       for (const key of ['startTime', 'dueTime']) if (validTime(edit[key]) || edit[key] === '') safe[key] = edit[key];
       if (['○', '△', '×', ''].includes(edit.pdf)) safe.pdf = edit.pdf;
       state.edits[id] = safe;

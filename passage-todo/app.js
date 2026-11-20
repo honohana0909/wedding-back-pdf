@@ -30,7 +30,6 @@
   function fillSetup() {
     document.querySelectorAll('[data-state]').forEach(el => { el.value = state[el.dataset.state]; });
     document.querySelectorAll('[name=course]').forEach(el => { el.checked = el.value === state.course; });
-    $('#include-unset').checked = state.includeUnset;
     $('#option-fields').innerHTML = E.options.map(([id, label]) => `<label><input type="checkbox" data-option="${id}" ${state.options[id] ? 'checked' : ''}>${esc(label)}</label>`).join('');
     renderTimes();
   }
@@ -48,9 +47,9 @@
     const original = start ? row.start : row.deadline;
     const label = start ? '開始' : '期限';
     const missing = anchor ? '時刻未入力' : '時刻未指定';
-    const description = manual ? '手動指定' : anchor ? `${E.eventMap[anchor]?.label || original || '進行'}の基準` : '原票の条件を参照';
-    if (print) return `<span class="p-time"><strong>${label}：${esc(time || missing)}</strong><small>${esc(time ? description : '')}${original ? `<br>${esc(original)}` : row.custom ? '' : '<br>原票未記入'}</small></span>`;
-    return `<div><span class="time-caption">${label}</span><span class="clock-value ${time ? '' : 'empty'}">${esc(time || missing)}</span><span class="time-relation">${esc(time ? description : '')}</span><span class="original-timing">${esc(original || (row.custom ? '独自ToDo' : '原票未記入'))}</span></div>`;
+    const description = manual ? '手動指定' : anchor ? `${E.eventMap[anchor]?.label || original || '進行'}の基準` : '開始・期限の条件を参照';
+    if (print) return `<span class="p-time"><strong>${label}：${esc(time || missing)}</strong><small>${esc(time ? description : '')}${original ? `<br>${esc(original)}` : row.custom ? '' : '<br>未入力'}</small></span>`;
+    return `<div><span class="time-caption">${label}</span><span class="clock-value ${time ? '' : 'empty'}">${esc(time || missing)}</span><span class="time-relation">${esc(time ? description : '')}</span><span class="original-timing">${esc(original || (row.custom ? '独自ToDo' : '未入力'))}</span></div>`;
   }
   function printTiming(row) {
   const start = row.startTime || row.start || '';
@@ -91,17 +90,15 @@ function printSupplement(row) {
     return [['場所', row.place], ['必要物', row.equipment], ['連携先', row.contact], ['注意点', row.caution], ['修正内容', row.revision]].filter(([,value]) => value);
   }
   function card(row) {
-    const source = rows.find(r => r.id === row.id);
-    const titleChanged = source && source.title !== row.title;
     return `<article class="todo-card ${row.done ? 'is-done' : ''}" data-id="${esc(row.id)}">
       <div class="todo-top"><label class="done-label"><input type="checkbox" data-done="${esc(row.id)}" ${row.done ? 'checked' : ''} aria-label="${esc(row.title)}を完了"></label><h3 class="todo-title">${esc(row.title)}</h3><button class="edit-button" data-edit="${esc(row.id)}" aria-label="${esc(row.title)}を編集">編集</button></div>
       <div class="task-timing"><span><b>開始</b>${esc(row.startManual || row.start || row.startTime || '未指定')}</span><span><b>期限</b>${esc(row.dueManual || row.deadline || row.dueTime || '未指定')}</span></div>
       <details class="todo-details"><summary>詳細・メモ${row.issues.length ? '<span class="tag warn">要確認</span>' : row.caution ? '<span class="tag warn">注意あり</span>' : ''}</summary>
-      <div class="tags"><span class="tag">${esc(row.category)}</span><span class="tag gray">${row.custom ? '独自ToDo' : `原票：${esc(row.status || '未記入')}`}</span>${row.issues.length ? '<span class="tag warn">要確認</span>' : ''}${row.pdf === '△' ? '<span class="tag gray">PDF：補足</span>' : row.pdf === '×' ? '<span class="tag gray">PDF：非掲載</span>' : row.pdf === '' ? '<span class="tag warn">PDF：未指定</span>' : ''}${row.startManual || row.dueManual ? '<span class="tag gray">時刻を手動指定</span>' : ''}</div>
+      <div class="tags"><span class="tag">${esc(row.category)}</span>${row.startManual || row.dueManual ? '<span class="tag gray">時刻を手動指定</span>' : ''}</div>
       <div class="timing-grid">${timeBlock(row, 'start')}${timeBlock(row, 'due')}</div>
       ${row.note ? `<p class="item-note">${esc(row.note)}</p>` : ''}
       ${row.issues.length ? `<div class="item-issues">${row.issues.map(esc).join('<br>')}</div>` : ''}
-      <dl class="details-grid">${detailPairs(row).map(([name,value]) => `<dt>${name}</dt><dd>${esc(value)}</dd>`).join('')}${titleChanged ? `<dt>元のToDo</dt><dd>${esc(source.title)}</dd>` : ''}<dt>出典</dt><dd>${row.custom ? '利用者が追加' : `業務確認チェックリスト ${row.row}行目`}</dd><dt>PDF掲載</dt><dd>${esc(row.pdf || '未指定')} ${row.pdf === '△' ? '補足として掲載' : row.pdf === '×' ? '掲載しない' : row.pdf === '' ? '印刷設定に従う（要確認表示）' : '掲載'}</dd></dl></details>
+      <dl class="details-grid">${detailPairs(row).map(([name,value]) => `<dt>${name}</dt><dd>${esc(value)}</dd>`).join('')}</dl></details>
     </article>`;
   }
   function render() {
@@ -112,7 +109,7 @@ function printSupplement(row) {
     $('#done-count').textContent = done;
     $('#review-count').textContent = review;
     $('#progress-bar').style.width = `${items.length ? done / items.length * 100 : 0}%`;
-    $('#review-notice').textContent = [storageMessage, review ? `${review}件に確認事項があります。空欄や原票の前後関係を残しています。「確認事項あり」で絞り込めます。` : ''].filter(Boolean).join(' ');
+    $('#review-notice').textContent = [storageMessage, review ? `${review}件に確認事項があります。開始・期限の空欄や前後関係を確認してください。「確認事項あり」で絞り込めます。` : ''].filter(Boolean).join(' ');
     document.querySelectorAll('[data-order]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.order === state.order)));
     $('#sort-hint').textContent = state.order === 'progress'
       ? '開始の進行を優先し、開始が作業条件の場合は期限を目安に表示。同じ進行では「前 → 時点 → 後」。'
@@ -149,15 +146,14 @@ function printSupplement(row) {
       </section>`;
     }).join('') : '<div class="empty-state">この条件に該当するToDoはありません。</div>';
     const printed = E.printable(items, state);
-    $('#print-count').textContent = `印刷対象 ${printed.length}件 ／ 非掲載 ${items.length - printed.length}件。A4縦・複数ページ対応。`;
+    $('#print-count').textContent = `印刷対象 ${printed.length}件（当日のToDoすべて）。A4縦・件数により複数ページ。`;
     buildPrint(items);
   }
   function buildPrint(items = E.generate(rows, state)) {
     const included = E.printable(items, state);
-    const uncertain = included.filter(r => r.issues.length).length;
     const conditions = E.options.filter(([id]) => state.options[id]).map(([,label]) => label);
     const flow = E.activeEvents(state).slice().sort((a,b) => (E.minutes(state.times[a.id]) ?? Infinity) - (E.minutes(state.times[b.id]) ?? Infinity) || a.rank-b.rank);
-    $('#print-document').innerHTML = `<div class="print-header"><div class="print-brand">PASSAGE / WEDDING BACK OFFICE</div><h1>${esc(state.name || '当日のバック業務ToDo')}</h1><p>${esc([state.date || '日付未入力',state.venue && `会場：${state.venue}`,state.staff && `担当：${state.staff}`].filter(Boolean).join('　'))}</p><p class="print-info">${state.course === 'western' ? '洋コース' : '和洋会席'} ｜ ${esc(conditions.join('・') || '追加条件なし')} ｜ ${state.order === 'time' ? '時刻順' : '進行順'}</p></div>
+    $('#print-document').innerHTML = `<div class="print-header"><div class="print-brand">当日の作業メモ</div><h1>${esc(state.name || '当日のバック業務ToDo')}</h1><p>${esc([state.date || '日付未入力',state.venue && `会場：${state.venue}`,state.staff && `担当：${state.staff}`].filter(Boolean).join('　'))}</p><p class="print-info">${state.course === 'western' ? '洋コース' : '和洋会席'} ｜ ${esc(conditions.join('・') || '追加条件なし')} ｜ ${state.order === 'time' ? '時刻順' : '進行順'}</p></div>
       <div class="print-flow">${flow.map(e => `<span>${esc(state.times[e.id] || '未入力')} ${esc(e.label)}</span>`).join('')}</div>
       <table class="print-table">
   <thead>
@@ -186,12 +182,12 @@ function printSupplement(row) {
     const row = id ? E.generate(rows,state).find(r => r.id === id) : null;
     const edit = id ? state.edits[id] || {} : {};
     $('#dialog-title').textContent = id ? 'ToDoを編集' : '独自ToDoを追加';
-    $('#edit-source').textContent = row && !row.custom ? `原票 ${row.row}行目｜開始：${row.start || '未記入'} ／ 期限：${row.deadline || '未記入'}` : '当日だけ必要な作業を追加できます。';
+    $('#edit-source').textContent = row && !row.custom ? `開始：${row.start || '未記入'} ／ 期限：${row.deadline || '未記入'}` : '当日だけ必要な作業を追加できます。';
     $('#edit-title').value = row?.title || '';
     $('#edit-start').value = edit.startTime || '';
     $('#edit-due').value = edit.dueTime || '';
     $('#edit-note').value = edit.note || '';
-    $('#edit-pdf').value = row ? row.pdf : '○';
+    for (const field of ['equipment', 'place', 'contact', 'caution']) $(`#edit-${field}`).value = row?.[field] || '';
     $('#edit-stage').innerHTML = '<option value="">未指定</option>' + E.events.map(e => `<option value="${e.id}">${esc(e.label)}</option>`).join('');
     $('#edit-stage').value = row?.stage || '';
     $('#stage-label').hidden = !!row && !row.custom;
@@ -210,7 +206,6 @@ function printSupplement(row) {
       const id = target.dataset.done;
       state.edits[id] = {...state.edits[id], done:target.checked};
     } else if (target.id === 'filter') { filter = target.value; render(); return; }
-    else if (target.id === 'include-unset') state.includeUnset = target.checked;
     else return;
     save(); render();
     if (target.dataset.done) document.querySelector(`[data-done="${target.dataset.done}"]`)?.focus({preventScroll:true});
@@ -238,7 +233,7 @@ function printSupplement(row) {
     const id = editingId || `custom-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
     if (!editingId) state.custom.push({id, custom:true, category:'独自ToDo', title, stage:$('#edit-stage').value, start:'', deadline:'', status:'独自', pdf:'○'});
     else if (id.startsWith('custom-')) state.custom.find(row => row.id === id).stage = $('#edit-stage').value;
-    state.edits[id] = {...state.edits[id], title, startTime, dueTime, note:$('#edit-note').value, pdf:$('#edit-pdf').value};
+    state.edits[id] = {...state.edits[id], title, startTime, dueTime, note:$('#edit-note').value, ...Object.fromEntries(['equipment', 'place', 'contact', 'caution'].map(field => [field, $(`#edit-${field}`).value]))};
     save(); render(); dialog.close();
   });
   $('#delete-custom').addEventListener('click', () => {
@@ -248,7 +243,7 @@ function printSupplement(row) {
     save(); render(); dialog.close();
   });
   $('#reset').addEventListener('click', () => {
-    if (!confirm('このブラウザーに保存した婚礼名・時刻・メモ・チェック・独自ToDoを消去します。新しい婚礼を作りますか？')) return;
+    if (!confirm('このブラウザーに保存した婚礼名・時刻・メモ・必要物などの編集・チェック・独自ToDoを消去します。新しい婚礼を作りますか？')) return;
     state = E.initialState(); storageBlocked = false; storageMessage = ''; filter = 'all';
     $('#filter').value = filter; save(); fillSetup(); render();
   });

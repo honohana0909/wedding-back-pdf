@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#263e36">
   <meta name="description" content="結婚式場のバック担当向け。当日の条件と進行時刻からToDoを作成し、印刷・PDF保存できます。">
-  <title>PASSAGE｜当日のバック業務</title>
+  <title>当日の作業メモ</title>
   <link rel="stylesheet" href="./styles.css">
   <script defer src="./checklist.js"></script>
   <script defer src="./engine.js"></script>
@@ -14,13 +14,12 @@
 <body>
 <div class="screen-app">
   <header class="site-header">
-    <a class="brand" href="#"><span class="brand-mark" aria-hidden="true">P</span><span>PASSAGE<small>WEDDING BACK OFFICE</small></span></a>
+    <a class="brand" href="#"><span>当日の作業メモ<small>WEDDING CHECKLIST</small></span></a>
     <div class="header-actions"><span id="save-status" role="status">このブラウザーに自動保存</span><button class="button primary" id="print-top">印刷・PDF保存</button></div>
   </header>
   <main>
     <section class="intro">
       <div><p class="eyebrow">YOUR DAY, IN ORDER</p><h1>準備から、お開きまで。</h1><p>時刻を見て、進行を追って、ひとつずつ。婚礼当日の仕事のレシピ。</p></div>
-      <div class="source-stamp"><span class="tiny-label">業務データ</span><strong>確認チェックリスト</strong><span>Excel原票 · 52項目</span></div>
     </section>
     <div class="workspace">
       <aside class="setup-panel" aria-label="当日の設定">
@@ -34,10 +33,10 @@
           <fieldset><legend>当日の条件 <small>該当するものを選択</small></legend><div id="option-fields" class="option-grid"></div></fieldset>
           <div class="section-divider"></div>
           <div class="section-title"><h3>主要進行時刻</h3><span class="tiny-label">24時間表記</span></div>
-          <p class="hint">決まっている時刻だけ入力してください。空欄は自動補完しません。提供開始と完了は分けて入力できます。</p>
+          <p class="hint">決まっている時刻だけ入力してください。空欄は自動補完しません。</p>
           <div id="time-fields" class="time-fields"></div>
           <p class="hint">同日内の進行に対応。オプションの順序は当日の時刻で調整してください。</p>
-          <details class="source-help"><summary>元データと保存について</summary><p>Excelの本文・開始・期限・必要物・連携先・注意点・確認状態・PDF掲載を保持しています。元の「確定」と、時刻や掲載方針の要確認は別々に表示します。</p><p>入力内容はこのブラウザー内だけに保存します。別の端末やURLには同期しません。</p><button id="reset" class="text-button danger">入力を消去して新しい婚礼を作る</button></details>
+          <details class="source-help"><summary>保存とリセット</summary><p>入力内容は、この端末・ブラウザーに自動保存されます。画面を閉じても残りますが、別の端末には同期されません。</p><p>サイトの保存データを消すと入力内容も消えます。共有端末では、使用後に下のボタンで消去してください。</p><button id="reset" class="text-button danger">入力を消去して新しい婚礼を作る</button></details>
         </div>
         </details>
       </aside>
@@ -48,10 +47,10 @@
         <div class="toolbar"><div class="view-options" role="group" aria-label="並び順"><button data-order="progress" aria-pressed="true">進行順</button><button data-order="time" aria-pressed="false">時刻順</button></div><label class="filter-label">表示<select id="filter"><option value="all">すべて</option><option value="unfinished">未完了</option><option value="review">確認事項あり</option><option value="custom">独自ToDo</option></select></label></div>
         <p class="sort-hint" id="sort-hint"></p>
         <div id="todo-list"></div>
-        <section class="print-settings" aria-label="印刷設定"><div><h3>そのまま、現場へ。</h3><p>画面の絞り込みに関係なく、PDF掲載対象を印刷します。</p><label class="check-label"><input type="checkbox" id="include-unset" checked> PDF掲載が未指定の項目も「要確認」として含める</label><p id="print-count" class="hint"></p></div><button class="button primary" id="print-bottom">印刷・PDF保存</button></section>
+        <section class="print-settings" aria-label="印刷設定"><div><h3>そのまま、現場へ。</h3><p>当日のコース・条件に該当するToDoを、完了済みも含めてすべて印刷します。</p><p id="print-count" class="hint"></p></div><button class="button primary" id="print-bottom">印刷・PDF保存</button></section>
       </section>
     </div>
-    <footer>PASSAGE <span>当日の業務を、ひとつずつ。</span><a href="./README.md">使い方・公開方法</a></footer>
+    <footer><span>個人用の作業メモ</span><details class="usage-guide"><summary>使い方</summary><ol><li>「当日の設定」でコース・条件・進行時刻を入力します。</li><li>タイムラインに沿って作業を確認し、終わったものにチェックします。</li><li>「詳細・メモ」で補足を確認。「編集」で必要物・場所・連携先・注意点も変更できます。</li><li>「印刷・PDF保存」で当日のToDoをまとめて印刷できます。画面の絞り込みは印刷に影響しません。</li></ol><p>編集はこのブラウザーに保存されます。新しい婚礼に切り替えると、編集内容も初期状態に戻ります。</p></details></footer>
   </main>
 </div>
 <section id="print-document" aria-hidden="true"></section>
@@ -64,7 +63,11 @@
     <div class="two-fields"><label>開始時刻（手動）<input type="time" id="edit-start"></label><label>期限時刻（手動）<input type="time" id="edit-due"></label></div>
     <p class="hint">手動時刻はその作業の指定時刻です。空欄に戻すと進行の基準時刻を参照します。元の開始・期限の文言は残ります。</p>
     <label>当日のメモ<textarea id="edit-note" rows="4" maxlength="5000" placeholder="数量・担当・変更内容など"></textarea></label>
-    <label>PDF掲載<select id="edit-pdf"><option value="○">○ 掲載</option><option value="△">△ 補足として掲載</option><option value="×">× 掲載しない</option><option value="">未指定（要確認）</option></select></label>
+    <label>必要物<textarea id="edit-equipment" rows="2" maxlength="2000" placeholder="道具・数量など"></textarea></label>
+    <label>場所<input id="edit-place" maxlength="300"></label>
+    <label>連携先<input id="edit-contact" maxlength="300"></label>
+    <label>注意点<textarea id="edit-caution" rows="3" maxlength="2000"></textarea></label>
+    <p class="hint">変更はこのブラウザーの今回の婚礼に保存されます。注意点はPDFにも掲載します。</p>
     <p id="edit-error" role="alert"></p>
     <div class="dialog-actions"><button type="button" id="delete-custom" class="text-button danger">このToDoを削除</button><button type="button" id="cancel-edit" class="button secondary">キャンセル</button><button type="submit" class="button primary">保存する</button></div>
   </form>

@@ -82,16 +82,16 @@ test('時刻順は手動開始、開始基準、期限基準を使い、未指�
   assert.notEqual(items[0].row,20);
 });
 
-test('原票の確定と別に、未記入・前後矛盾・逆転時刻を表示する', () => {
+test('作業の未記入・前後矛盾・逆転時刻を表示し、原票の管理情報は表示しない', () => {
   const s=E.initialState();s.options={dessert:true,event:true,lunch:true};
   assert.equal(get(s,36).status,'確定');assert.ok(get(s,36).issues.some(x=>x.includes('前後関係')));
   assert.ok(get(s,53).issues.some(x=>x.includes('前後関係')));
-  assert.ok(get(s,45).issues.includes('確認状態が未記入'));
-  assert.ok(get(s,45).issues.includes('PDF掲載が未指定'));
+  assert.ok(!get(s,45).issues.some(x=>x.includes('確認状態')));
+  assert.ok(!get(s,45).issues.some(x=>x.includes('PDF掲載')));
   s.times.meeting='12:30';s.times.open='12:00';
   assert.ok(get(s,9).issues.some(x=>x.includes('入力時刻')));
   s.edits['excel-36']={startTime:'10:30',dueTime:'11:00'};
-  assert.ok(get(s,36).issues.some(x=>x.includes('原票')));
+  assert.ok(get(s,36).issues.some(x=>x.includes('前後関係')));
 });
 
 test('進行順の前後判定は時刻の入力有無に左右されない', () => {
@@ -103,15 +103,13 @@ test('進行順の前後判定は時刻の入力有無に左右されない', ()
   assert.deepEqual(opening,[10,11,20]);
 });
 
-test('PDFは○と△を掲載、×を除外、未指定は設定に従う', () => {
+test('当日のToDoは旧保存データの非掲載設定に関係なくすべてPDF掲載', () => {
   const s=E.initialState();s.edits['excel-2']={pdf:'×'};s.edits['excel-3']={pdf:'△'};
-  const items=E.generate(rows,s);
-  let printed=E.printable(items,s);
-  assert.ok(!printed.some(r=>r.row===2));assert.ok(printed.some(r=>r.row===3));
-  assert.ok(printed.some(r=>r.row===19));
-  s.includeUnset=false;printed=E.printable(items,s);
-  assert.ok(!printed.some(r=>r.row===19));
-  assert.equal(printed.length,17);
+  s.includeUnset=false;
+  const restored=E.normalizeState(JSON.parse(JSON.stringify(s)));
+  const items=E.generate(rows,restored);
+  assert.deepEqual(E.printable(items,restored),items);
+  assert.ok(items.every(r=>r.pdf==='○'));
 });
 
 test('独自ToDoはコースに依存せず、メモや印刷設定を復元できる', () => {
@@ -119,7 +117,7 @@ test('独自ToDoはコースに依存せず、メモや印刷設定を復元で�
   s.edits['custom-test']={note:'確認事項',startTime:'11:00',pdf:'△'};
   s=E.normalizeState(JSON.parse(JSON.stringify(s)));s.course='mixed';
   const row=E.generate(rows,s).find(r=>r.id==='custom-test');
-  assert.equal(row.title,'追加の準備');assert.equal(row.note,'確認事項');assert.equal(row.pdf,'△');
+  assert.equal(row.title,'追加の準備');assert.equal(row.note,'確認事項');assert.equal(row.pdf,'○');
   assert.equal(row.startTime,'11:00');
 });
 
@@ -132,4 +130,22 @@ test('壊れた保存形式と不正な時刻を無条件に取り込まない',
   assert.equal(restored.edits['excel-2'].startTime,undefined);
   assert.equal(restored.edits['excel-2'].done,false);
   assert.equal(E.validTime('24:00'),false);assert.equal(E.validTime('00:00'),true);
+});
+
+test('必要物・場所・連携先・注意点の編集と空欄への変更を保存復元できる', () => {
+  const s=E.initialState();
+  s.edits['excel-39']={equipment:'出皿 4枚',place:'厨房',contact:'担当者',caution:'熱いので注意'};
+  s.options.beef=true;
+  let restored=E.normalizeState(JSON.parse(JSON.stringify(s)));
+  for(const key of ['equipment','place','contact','caution']) assert.equal(get(restored,39)[key],s.edits['excel-39'][key]);
+  restored.edits['excel-39'].equipment='';
+  restored=E.normalizeState(JSON.parse(JSON.stringify(restored)));
+  assert.equal(get(restored,39).equipment,'');
+  assert.equal(rows.find(r=>r.row===39).equipment,'出皿・レードル');
+});
+
+test('保存データの独自ToDo IDは安全な文字だけを受け付ける', () => {
+  const s=E.initialState();
+  s.custom=[{id:'custom-valid-1',title:'正常'}, {id:'custom-\" onclick=\"alert(1)',title:'不正'}, {id:'custom-<script>',title:'不正'}];
+  assert.deepEqual(E.normalizeState(s).custom.map(r=>r.id),['custom-valid-1']);
 });

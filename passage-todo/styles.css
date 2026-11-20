@@ -69,9 +69,9 @@
   .timeline-stage::before { content: ''; position: absolute; left: 8px; top: 30px; bottom: -30px; width: 2px; background: #aab5a5; }
   .timeline-stage:last-child::before { bottom: 28px; }
   .timeline-stage::after { content: ''; position: absolute; left: 1px; top: 29px; width: 16px; height: 16px; border-radius: 50%; background: var(--stage-color); border: 3px solid var(--paper); box-shadow: 0 0 0 1px var(--stage-color); }
-  .timeline-stage.is-food { --stage-color: #803e36; }
+  .timeline-stage.is-food { --stage-color: #285572; }
   .stage-heading { display: flex; align-items: center; gap: 22px; min-height: 88px; padding: 15px 20px; background: #e4e9de; border: 1px solid #c5cfbe; border-top: 3px solid var(--stage-color); border-radius: 4px 4px 0 0; }
-  .is-food .stage-heading { background: #eee0d8; border-color: #d8bfb2; border-top-color: var(--stage-color); }
+  .is-food .stage-heading { background: #e2ecf2; border-color: #b7cad8; border-top-color: var(--stage-color); }
   .stage-time { flex: 0 0 112px; color: var(--stage-color); }
   .stage-time time { display: block; font: 700 30px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -1px; }
   .stage-time small { display: block; font-size: 12px; margin-top: 4px; color: var(--muted); }
@@ -116,7 +116,12 @@
   .item-issues { padding: 10px; background: var(--amber-bg); border-left: 3px solid #ab802e; }
   .print-settings { margin-top: 12px; background: #e4e9de; border-color: #c5cfbe; border-radius: 4px; }
   .print-settings p, .check-label { font-size: 13px; }
-  footer { color: var(--muted); }
+  footer { color: var(--muted); align-items: flex-start; }
+  .brand { font-family: inherit; font-weight: 650; letter-spacing: 1px; }
+  .usage-guide { margin-left: auto; max-width: 560px; font: 14px/1.8 -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: 0; }
+  .usage-guide summary { min-height: 44px; }
+  .usage-guide ol { padding-left: 22px; margin: 8px 0; }
+  .usage-guide li { margin-bottom: 8px; }
   footer span, footer a { font-size: 12px; }
   dialog { background: #fffef9; border-radius: 5px; }
   #edit-error { font-size: 14px; }

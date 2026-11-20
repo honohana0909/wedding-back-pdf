@@ -95,33 +95,14 @@
       ? '開始の進行を優先し、開始が作業条件の場合は期限を目安に表示。同じ進行では「前 → 時点 → 後」。'
       : '開始の基準時刻（手動指定を優先）→ 期限の基準時刻で整列。時刻がない項目は最後に表示。';
     const visible = items.filter(row => filter === 'all' || (filter === 'unfinished' && !row.done) || (filter === 'review' && row.issues.length) || (filter === 'custom' && row.custom));
-    // Presentation only: preserve the engine's order, grouping and generated tasks.
-    const groupKey = row => state.order === 'progress' ? row.group : row.sortTime === null ? 'no-time' : String(row.sortTime);
-    const groups = [];
-    for (const row of items) {
-      const id = groupKey(row);
-      if (groups.at(-1)?.id !== id) groups.push({id, rows: []});
-      groups.at(-1).rows.push(row);
-    }
-    // Setup is a milestone even when there is no task assigned to it.
-    if (!items.some(row => row.group === 'setup')) {
-      const setup = E.eventMap.setup;
-      const setupTime = E.minutes(state.times.setup) ?? Infinity;
-      const position = groups.findIndex(group => {
-        const first = group.rows[0];
-        if (state.order === 'progress') return first.rank > setup.rank;
-        const time = first.sortTime ?? Infinity;
-        return time > setupTime || (time === setupTime && first.rank > setup.rank);
-      });
-      groups.splice(position < 0 ? groups.length : position, 0, {id:'setup-milestone', rows:[], event:setup});
-    }
+    const groups = E.timelineGroups(items, state);
     const currentIndex = groups.findIndex(group => group.rows.some(row => !row.done));
     const visibleIds = new Set(visible.map(row => row.id));
-    const foodEvents = new Set(['preplate', 'preplateEnd', 'sashimiPreplate', 'obire', 'hov', 'hovEnd', 'sashimi', 'soup', 'soupEnd', 'fish', 'fishEnd', 'meat', 'beef', 'tempura', 'dessert']);
+    const foodEvents = new Set(['preplate', 'sashimiPreplate', 'childMeal', 'obire', 'hov', 'soup', 'breadAfterSoup', 'fish', 'breadAfterFish', 'meat', 'cakeDessert', 'beef', 'tempura', 'dessert']);
     $('#todo-list').innerHTML = visible.length ? groups.map((group, index) => {
       if (group.event) {
         const time = state.times[group.event.id];
-        return `<section class="timeline-stage stage-milestone" aria-labelledby="stage-${index}"><header class="stage-heading">
+        return `<section class="timeline-stage stage-milestone ${foodEvents.has(group.event.id) ? 'is-food' : ''}" aria-labelledby="stage-${index}"><header class="stage-heading">
           <div class="stage-time">${time ? `<time>${esc(time)}</time>` : '<span class="unset-time">時刻未入力</span>'}<small>進行の基準</small></div>
           <div class="stage-event">${index === currentIndex + 1 && currentIndex !== -1 ? '<span class="stage-status">次の工程</span>' : ''}<h3 id="stage-${index}">${esc(E.eventLabel(group.event.id, state))}</h3></div>
         </header></section>`;
@@ -151,37 +132,22 @@
   function buildPrint(items = E.generate(rows, state)) {
     const included = E.printable(items, state);
     const conditions = E.activeOptions(state).filter(([id]) => state.options[id]).map(([,label]) => label);
-    const flow = E.activeEvents(state).filter(event => state.times[event.id]).sort((a,b) => E.minutes(state.times[a.id]) - E.minutes(state.times[b.id]) || a.rank-b.rank);
-    const food = new Set(['preplate', 'preplateEnd', 'sashimiPreplate', 'obire', 'hov', 'hovEnd', 'sashimi', 'soup', 'soupEnd', 'fish', 'fishEnd', 'meat', 'beef', 'tempura', 'dessert']);
+    const flow = E.activeEvents(state);
+    if (state.order === 'time') flow.sort((a,b) => (E.minutes(state.times[a.id]) ?? Infinity) - (E.minutes(state.times[b.id]) ?? Infinity) || a.rank-b.rank);
+    const food = new Set(['preplate', 'sashimiPreplate', 'childMeal', 'obire', 'hov', 'soup', 'breadAfterSoup', 'fish', 'breadAfterFish', 'meat', 'cakeDessert', 'beef', 'tempura', 'dessert']);
     const labelFor = row => groupLabel(row.group);
-    const groups = [];
-    for (const row of included) {
-      const id = state.order === 'progress' ? row.group : row.sortTime === null ? 'no-time' : String(row.sortTime);
-      if (groups.at(-1)?.id !== id) groups.push({id, rows: []});
-      groups.at(-1).rows.push(row);
-    }
-    if (!included.some(row => row.group === 'setup')) {
-      const setupTime = E.minutes(state.times.setup) ?? Infinity;
-      const rank = E.eventMap.setup.rank;
-      const position = groups.findIndex(group => {
-        const first = group.rows[0];
-        if (state.order === 'progress') return first.rank > rank;
-        const time = first.sortTime ?? Infinity;
-        return time > setupTime || (time === setupTime && first.rank > rank);
-      });
-      groups.splice(position < 0 ? groups.length : position, 0, {id:'setup', rows:[], milestone:true});
-    }
+    const groups = E.timelineGroups(included, state);
     const course = state.course === 'western' ? '洋コース' : '和洋会席';
     $('#print-document').innerHTML = `<header class="print-header">
         <div class="print-heading"><div><p class="print-brand">当日の作業メモ</p><h1>${esc(state.name || '婚礼の進行チェックリスト')}</h1></div><div class="print-total"><strong>${included.length}</strong><span>項目</span></div></div>
         <p class="print-meta"><span><b>日付</b> ${esc(state.date || '未入力')}</span><span><b>会場</b> ${esc(state.venue || '未入力')}</span><span><b>担当</b> ${esc(state.staff || '未入力')}</span></p>
         <p class="print-info">${esc(course)}${conditions.length ? ` ／ ${esc(conditions.join('・'))}` : ''}<span>${state.order === 'time' ? '時刻順' : '進行順'}</span></p>
       </header>
-      ${flow.length ? `<div class="print-flow">${flow.map(e => `<span><b>${esc(state.times[e.id])}</b> ${esc(e.label)}</span>`).join('')}</div>` : ''}
+      ${flow.length ? `<div class="print-flow">${flow.map(e => `<span><b>${esc(state.times[e.id] || '—')}</b> ${esc(e.label)}</span>`).join('')}</div>` : ''}
       <table class="print-table"><colgroup><col class="p-check-col"><col class="p-time-col"><col></colgroup>
         <thead><tr><th scope="col">済</th><th scope="col">タイミング</th><th scope="col">やること・注意点</th></tr></thead>
         ${groups.map(group => {
-          if (group.milestone) return `<tbody><tr class="p-stage p-milestone"><th colspan="3" scope="rowgroup">${state.times.setup ? `<time>${esc(state.times.setup)}</time>` : ''}セットアップ</th></tr></tbody>`;
+          if (group.event) return `<tbody><tr class="p-stage p-milestone ${food.has(group.event.id) ? 'p-stage-food' : ''}"><th colspan="3" scope="rowgroup">${state.times[group.event.id] ? `<time>${esc(state.times[group.event.id])}</time>` : ''}${esc(group.event.label)}</th></tr></tbody>`;
           const first = group.rows[0];
           const time = state.order === 'progress' ? state.times[first.group] : first.startTime || first.dueTime;
           const label = [...new Set(group.rows.map(labelFor))].join(' ／ ');
@@ -201,7 +167,9 @@
     $('#edit-due').value = edit.dueTime || '';
     $('#edit-note').value = edit.note || '';
     for (const field of ['equipment', 'place', 'contact', 'caution']) $(`#edit-${field}`).value = row?.[field] || '';
-    $('#edit-stage').innerHTML = '<option value="">未指定</option>' + E.events.map(e => `<option value="${e.id}">${esc(E.eventLabel(e.id, state))}</option>`).join('');
+    const editEvents = E.activeEvents(state);
+    if (row?.stage && !editEvents.some(e => e.id === row.stage) && E.eventMap[row.stage]) editEvents.push(E.eventMap[row.stage]);
+    $('#edit-stage').innerHTML = '<option value="">未指定</option>' + editEvents.map(e => `<option value="${e.id}">${esc(E.eventLabel(e.id, state))}</option>`).join('');
     $('#edit-stage').value = row?.stage || '';
     $('#stage-label').hidden = !!row && !row.custom;
     $('#delete-custom').hidden = !row?.custom;

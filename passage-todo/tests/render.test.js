@@ -88,11 +88,11 @@ test('既存ToDoの進行名が表示され、和洋会席のパン切替が画�
     assert.ok(html.includes('1回目・スープ後'));assert.ok(html.includes('2回目・魚後'));
     assert.ok(!html.includes('進行未指定'));
   }
-  assert.ok(a.node('#time-fields').innerHTML.includes('スープ提供完了'));
+  assert.ok(a.node('#time-fields').innerHTML.includes('スープ'));
   a.handlers.change({target:{dataset:{},name:'course',value:'western'}});
   assert.ok(!a.node('#option-fields').innerHTML.includes('パンを追加'));
   assert.ok(!a.node('#print-document').innerHTML.includes('パンを追加'));
-  assert.ok(a.node('#todo-list').innerHTML.includes('HOV提供完了'));
+  assert.ok(a.node('#todo-list').innerHTML.includes('HOV'));
   assert.ok(!a.node('#todo-list').innerHTML.includes('進行未指定'));
 });
 
@@ -155,4 +155,21 @@ test('印刷でもコース別の先付け名と空のセットアップを維�
   assert.ok(!html.includes('バター先付け'));
   assert.ok(!html.includes('undefined'));
   assert.equal((html.match(/<tr class="p-task /g)||[]).length,E.generate(rows,s).length);
+});
+
+test('時刻欄・タイムライン・PDFのフローが同じ進行順になる', () => {
+  for(const course of ['western','mixed']) {
+    const s=E.initialState();s.course=course;
+    // Different clock values must not reorder progress mode.
+    s.times={open:'15:00',entrance:'14:00'};
+    const a=app(s), events=E.activeEvents(s);
+    const inputs=[...a.node('#time-fields').innerHTML.matchAll(/data-time="([^"]+)"/g)].map(m=>m[1]);
+    assert.deepEqual(inputs,events.map(e=>e.id));
+    const headings=[...a.node('#todo-list').innerHTML.matchAll(/<h3 id="stage-\d+">([^<]+)<\/h3>/g)].map(m=>m[1]);
+    assert.deepEqual(headings.slice(0,events.length),events.map(e=>e.label));
+    const flow=a.node('#print-document').innerHTML.split('<div class="print-flow">')[1].split('</div>')[0];
+    const labels=[...flow.matchAll(/<\/b> ([^<]+)<\/span>/g)].map(m=>m[1]);
+    assert.deepEqual(labels,events.map(e=>e.label));
+    assert.equal(Number(a.node('#total-count').textContent),E.generate(rows,s).length);
+  }
 });

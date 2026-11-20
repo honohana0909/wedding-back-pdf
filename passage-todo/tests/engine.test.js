@@ -43,15 +43,15 @@ test('2コース×9条件の全1024通りで対象件数と固有項目が一致
   }
 });
 
-test('未入力の時刻を補完せず、提供後は提供完了時刻を参照する', () => {
+test('未入力の時刻を補完せず、新しい主要進行時刻を基準にする', () => {
   const s=E.initialState();
   assert.ok(E.generate(rows,s).every(r=>!r.startTime && !r.dueTime));
   s.times={open:'12:00',hov:'12:30',hovEnd:'12:40',fish:'13:00',fishEnd:'13:15'};
   assert.equal(get(s,10).startTime,'12:00');
   assert.equal(get(s,10).start,'開場直後');
-  assert.equal(get(s,21).startTime,'12:40');
-  assert.equal(get(s,15).startTime,'13:15');
-  delete s.times.hovEnd;
+  assert.equal(get(s,21).startTime,'12:30');assert.equal(get(s,21).startRelation,1);
+  assert.equal(get(s,15).startTime,'13:00');
+  delete s.times.hov;
   assert.equal(get(s,21).startTime,'');
 });
 
@@ -62,7 +62,7 @@ test('和洋会席の運搬依存は時刻に置換せず原票の条件と順�
   assert.equal(get(s,25).startTime,'');
   assert.equal(get(s,25).start,'2Fから受取後');
   assert.equal(get(s,25).dueTime,'11:30');
-  assert.equal(get(s,28).startTime,'11:45');
+  assert.equal(get(s,28).startTime,'');assert.equal(get(s,28).dueId,'sashimiPreplate');
 });
 
 test('手動時刻、メモ、完了チェックは条件の切替え・保存復元後も保持', () => {
@@ -165,9 +165,9 @@ test('セットアップは両方のコースで共通の進行時刻として�
 });
 
 test('ビアンド用ウォーマーの期限はビアンド時刻まで', () => {
-  const s=E.initialState();s.times={fishEnd:'13:20',meat:'13:40'};
+  const s=E.initialState();s.times={fish:'13:20',meat:'13:40'};
   const row=get(s,15);
-  assert.equal(row.group,'fishEnd');
+  assert.equal(row.group,'fish');
   assert.equal(row.startTime,'13:20');
   assert.equal(row.deadline,'ビアンドまで');
   assert.equal(row.dueId,'meat');assert.equal(row.dueRelation,0);assert.equal(row.dueTime,'13:40');
@@ -176,17 +176,17 @@ test('ビアンド用ウォーマーの期限はビアンド時刻まで', () =>
 test('パンはスープ後と魚後の2回で、和洋会席にはオプションで準備ごと追加する', () => {
   for(const course of ['western','mixed']) for(const bread of [false,true]) {
     const s=E.initialState();s.course=course;s.options.bread=bread;
-    s.times={soupEnd:'13:00',fishEnd:'13:30'};
+    s.times={breadAfterSoup:'13:00',breadAfterFish:'13:30'};
     const items=E.generate(rows,s);
     const breadRows=items.filter(r=>r.category==='パン');
     const enabled=course==='western'||bread;
     assert.equal(breadRows.length,enabled?4:0);
     assert.equal(E.activeOptions(s).some(([id])=>id==='bread'),course==='mixed');
-    assert.equal(E.activeEvents(s).some(e=>e.id==='soupEnd'),enabled);
+    assert.equal(E.activeEvents(s).some(e=>e.id==='breadAfterSoup'),enabled);
     if(!enabled) continue;
     const first=get(s,22), second=get(s,23);
-    assert.equal(first.group,'soupEnd');assert.equal(first.startTime,'13:00');
-    assert.equal(second.group,'fishEnd');assert.equal(second.startTime,'13:30');
+    assert.equal(first.group,'breadAfterSoup');assert.equal(first.startTime,'13:00');
+    assert.equal(second.group,'breadAfterFish');assert.equal(second.startTime,'13:30');
     assert.equal(first.start,'スープ提供後');assert.equal(second.start,'ポアソン提供後');
     assert.ok(items.findIndex(r=>r.row===22)<items.findIndex(r=>r.row===23));
     assert.ok(!first.issues.some(x=>x.includes('入力時刻')));
@@ -239,4 +239,32 @@ test('既存の時刻・利用者の編集を保持し、刺身先付け時刻�
   restored=E.normalizeState(JSON.parse(JSON.stringify(restored)));
   assert.equal(get(restored,29).dueTime,'11:30');
   assert.equal(restored.times.sashimi,'12:40');
+});
+
+test('主要進行は指定されたコース別の順序で、作業のない進行もフローに含む', () => {
+  const expected={
+    western:['出勤','MTG','バター先付け','セットアップ','開場','新郎新婦入場','乾杯','お子様料理','HOV','歓談','ケーキ入刀','スープ','パン','お色直し中座','ポアソン','パン','ビアンド','お色直し入場','ケーキデザート・コーヒー','フォトラウンド','お見送り'],
+    mixed:['出勤','MTG','前菜・ちらし寿司先付け','刺身先付け','セットアップ','開場','新郎新婦入場','乾杯','お子様料理','歓談','ケーキ入刀','ポアソン','お色直し中座','ビアンド','お色直し入場','ケーキデザート・コーヒー','フォトラウンド','お見送り']
+  };
+  for(const course of ['western','mixed']) {
+    const s=E.initialState();s.course=course;
+    const events=E.activeEvents(s);
+    assert.deepEqual(events.map(e=>e.label),expected[course]);
+    const groups=E.timelineGroups(E.generate(rows,s),s);
+    const ids=groups.map(g=>g.event?.id || g.rows[0].group).filter(id=>id!=='ongoing');
+    assert.deepEqual(ids,events.map(e=>e.id));
+    assert.deepEqual(E.timelineGroups([],s).map(g=>g.event.id),events.map(e=>e.id));
+    assert.ok(events.every(e=>!['preplateEnd','soupEnd','fishEnd','hovEnd','sashimi'].includes(e.id)));
+  }
+});
+
+test('パンの時刻を個別に保存し、旧完了時刻と既存メモは破棄しない', () => {
+  const s=E.initialState();s.times={preplateEnd:'11:00',soupEnd:'13:00',fishEnd:'13:30',breadAfterSoup:'13:05',breadAfterFish:'13:35'};
+  s.custom=[{id:'custom-old',title:'追加作業',stage:'fishEnd'}];
+  s.edits['excel-22']={note:'変更済み',done:true};
+  const restored=E.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(restored.times,s.times);
+  assert.equal(restored.custom[0].stage,'fish');
+  assert.equal(get(restored,22).startTime,'13:05');assert.equal(get(restored,23).startTime,'13:35');
+  assert.equal(get(restored,22).note,'変更済み');assert.equal(get(restored,22).done,true);
 });

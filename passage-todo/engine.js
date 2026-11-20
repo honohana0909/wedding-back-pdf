@@ -5,34 +5,26 @@
     ['tempura', '天ぷら'], ['lunch', '子ランチ'], ['hamburg', '子バーグ'],
     ['childCourse', '子コース'], ['event', 'イベント・余興'], ['bread', 'パンを追加']
   ];
-  // Order is an editable day's reference sequence, never an invented clock time.
+  // Stable IDs preserve saved input; each course defines its own display order.
   const events = [
-    ['arrival', '出勤', 'common'], 
-    ['meeting', 'MTG', 'common'],
-    ['preplate', 'バター先付け', 'common'], 
-    ['preplateEnd', '前菜・ちらし寿司先付け完了', 'mixed'],
-    ['sashimiPreplate', '刺身先付け', 'mixed'],
-    ['setup', 'セットアップ', 'common'],
-    ['open', '開場', 'common'], 
-    ['obire', '尾鰭椀', 'obire'],
-    ['entrance', '新郎新婦入場／披露宴開始', 'common'],
-    ['toast', '乾杯', 'common'],
-    ['hov', 'HOV', 'western'],
-    ['hovEnd', 'HOV提供完了', 'western'], 
-    ['sashimi', '刺身提供', 'mixed'], 
-    ['soup', 'スープ', 'western'],
-    ['soupEnd', 'スープ提供完了', 'western'],
-    ['fish', 'ポアソン', 'common'],
-    ['fishEnd', 'ポアソン提供完了', 'common'],
-    ['meat', 'ビアンド', 'common'],
-    ['beef', 'ローストビーフ提供', 'beef'], 
-    ['tempura', '天ぷら提供', 'tempura'],
-    ['dessert', 'デザートビュッフェ開始', 'dessert'], 
-    ['event', 'イベント開始', 'event'],
-    ['eventEnd', 'イベント終了', 'event'], 
-    ['close', 'お開き', 'common']
-  ].map(([id, label, condition], index) => ({ id, label, condition, rank: index }));
+    ['arrival', '出勤'], ['meeting', 'MTG'], ['preplate', 'バター先付け'],
+    ['sashimiPreplate', '刺身先付け'], ['setup', 'セットアップ'], ['open', '開場'],
+    ['entrance', '新郎新婦入場'], ['toast', '乾杯'], ['childMeal', 'お子様料理'],
+    ['hov', 'HOV'], ['conversation', '歓談'], ['cakeCut', 'ケーキ入刀'],
+    ['soup', 'スープ'], ['breadAfterSoup', 'パン'], ['intermission', 'お色直し中座'],
+    ['fish', 'ポアソン'], ['breadAfterFish', 'パン'], ['meat', 'ビアンド'],
+    ['reentry', 'お色直し入場'], ['cakeDessert', 'ケーキデザート・コーヒー'],
+    ['photoRound', 'フォトラウンド'], ['close', 'お見送り'],
+    ['obire', '尾鰭椀'], ['beef', 'ローストビーフ提供'], ['tempura', '天ぷら提供'],
+    ['dessert', 'デザートビュッフェ開始'], ['event', 'イベント開始'], ['eventEnd', 'イベント終了']
+  ].map(([id, label], rank) => ({id, label, rank}));
+  // Retain legacy clock values in storage, but do not show obsolete input fields.
+  const legacyEvents = {preplateEnd:'preplate', hovEnd:'hov', soupEnd:'soup', fishEnd:'fish', sashimi:'sashimiPreplate'};
   const eventMap = Object.fromEntries(events.map(e => [e.id, e]));
+  const courseSequences = {
+    western: ['arrival','meeting','preplate','setup','open','entrance','toast','childMeal','hov','conversation','cakeCut','soup','breadAfterSoup','intermission','fish','breadAfterFish','meat','reentry','cakeDessert','photoRound','close'],
+    mixed: ['arrival','meeting','preplate','sashimiPreplate','setup','open','entrance','toast','childMeal','conversation','cakeCut','fish','intermission','meat','reentry','cakeDessert','photoRound','close']
+  };
   // [start anchor, relation, deadline anchor, relation, optional display group]
   // A null start anchor means a task dependency or non-specific start: preserve its wording.
   const timing = {
@@ -49,20 +41,20 @@
     12: ['toast', 1, null, 0], 
     13: [null, 0, null, 0, 'ongoing'],
     14: ['toast', 1, 'fish', -1], 
-    15: ['fishEnd', 1, 'meat', 0],
+    15: ['fish', 1, 'meat', 0],
     16: ['preplate', 0, 'preplate', 0], 
     17: ['preplate', 0, 'preplate', 0],
     18: ['arrival', 1, 'open', -1], 
     19: ['arrival', 1, 'open', -1],
     20: ['open', 1, 'toast', -1], 
-    21: ['hovEnd', 1, 'soup', -1],
-    22: ['soupEnd', 1, 'soupEnd', 1], 
-    23: ['fishEnd', 1, 'fishEnd', 1],
+    21: ['hov', 1, 'soup', -1],
+    22: ['breadAfterSoup', 0, 'breadAfterSoup', 0], 
+    23: ['breadAfterFish', 0, 'breadAfterFish', 0],
     24: ['preplate', 0, 'preplate', 0], 
     25: [null, 0, 'preplate', 0],
     26: [null, 0, 'preplate', 0], 
-    27: [null, 0, 'preplateEnd', 0, 'preplate'],
-    28: ['preplateEnd', 1, 'sashimiPreplate', -1, 'sashimiPreplate'], 
+    27: [null, 0, 'sashimiPreplate', -1, 'preplate'],
+    28: [null, 0, 'sashimiPreplate', -1, 'sashimiPreplate'], 
     29: [null, 0, 'sashimiPreplate', 0],
     30: ['arrival', 1, 'open', -1], 
     31: ['preplate', -1, 'entrance', -1],
@@ -79,7 +71,7 @@
     42: ['arrival', 1, 'open', -1], 
     43: ['tempura', -1, 'tempura', -1],
     44: ['meeting', 1, 'open', -1], 
-    45: ['open', 1, 'toast', -1],
+    45: ['toast', 1, 'childMeal', 0, 'childMeal'],
     46: ['meeting', 1, 'open', -1], 
     47: ['meeting', 1, 'open', -1],
     48: ['meeting', 1, 'open', -1], 
@@ -97,12 +89,46 @@
   const minutes = value => validTime(value) ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
   const children = state => ['lunch', 'hamburg', 'childCourse'].some(key => state.options[key]);
   function eventLabel(id, state) {
+    id = legacyEvents[id] || id;
     if (id === 'preplate' && state.course === 'mixed') return '前菜・ちらし寿司先付け';
     return eventMap[id]?.label || '';
   }
   function activeEvents(state) {
-    return events.filter(e => e.condition === 'common' || e.condition === state.course || state.options[e.condition]
-      || (state.course === 'mixed' && state.options.bread && ['soup', 'soupEnd'].includes(e.id))).map(e => ({...e, label:eventLabel(e.id, state)}));
+    const ids = [...courseSequences[state.course]];
+    const after = (anchor, additions) => ids.splice(ids.indexOf(anchor) + 1, 0, ...additions);
+    if (state.course === 'mixed' && state.options.bread) {
+      after('cakeCut', ['soup', 'breadAfterSoup']);
+      after('fish', ['breadAfterFish']);
+    }
+    if (state.options.obire) after('open', ['obire']);
+    after('meat', ['beef','tempura'].filter(id => state.options[id]));
+    if (state.options.dessert) after('cakeDessert', ['dessert']);
+    if (state.options.event) after('photoRound', ['event','eventEnd']);
+    return ids.map((id, rank) => ({...eventMap[id], label:eventLabel(id, state), rank}));
+  }
+  function eventRank(id, state) {
+    return activeEvents(state).find(e => e.id === id)?.rank ?? (id === 'ongoing' ? 998 : 999);
+  }
+  function timelineGroups(items, state) {
+    const groups = [];
+    for (const row of items) {
+      const id = state.order === 'progress' ? row.group : row.sortTime === null ? 'no-time' : String(row.sortTime);
+      if (groups.at(-1)?.id !== id) groups.push({id, rows:[]});
+      groups.at(-1).rows.push(row);
+    }
+    // Keep every scheduled event visible, even when it has no ToDo.
+    for (const event of activeEvents(state)) {
+      if (items.some(row => row.group === event.id)) continue;
+      const eventTime = minutes(state.times[event.id]) ?? Infinity;
+      const position = groups.findIndex(group => {
+        const rank = group.event?.rank ?? group.rows[0].rank;
+        if (state.order === 'progress') return rank > event.rank;
+        const time = group.event ? minutes(state.times[group.event.id]) ?? Infinity : group.rows[0].sortTime ?? Infinity;
+        return time > eventTime || (time === eventTime && rank > event.rank);
+      });
+      groups.splice(position < 0 ? groups.length : position, 0, {id:event.id, rows:[], event});
+    }
+    return groups;
   }
   function activeOptions(state) {
     return options.filter(([id]) => id !== 'bread' || state.course === 'mixed');
@@ -154,8 +180,8 @@
     return { ...row, ...edit, pdf, custom, startId, dueId, startRelation, dueRelation,
       startTime, dueTime, startManual, dueManual, group, issues, index,
       sortTime: a !== null ? a : b,
-      sortRelation: startManual ? 0 : startId ? startRelation : dueManual ? 0 : dueRelation,
-      rank: eventMap[group]?.rank ?? (group === 'ongoing' ? 998 : 999) };
+      sortRelation: startManual ? 0 : startId ? startRelation : dueManual || (groupOverride && groupOverride !== dueId) ? 0 : dueRelation,
+      rank: eventRank(group, state) };
   }
   function generate(rows, state) {
     return [...rows.filter(row => applies(row, state)), ...state.custom]
@@ -175,11 +201,11 @@
     state.order = value.order === 'time' ? 'time' : 'progress';
     state.includeUnset = value.includeUnset !== false;
     for (const [key] of options) state.options[key] = value.options?.[key] === true;
-    for (const event of events) if (validTime(value.times?.[event.id])) state.times[event.id] = value.times[event.id];
+    for (const id of [...events.map(e => e.id), ...Object.keys(legacyEvents)]) if (validTime(value.times?.[id])) state.times[id] = value.times[id];
     if (Array.isArray(value.custom)) state.custom = value.custom.filter(r => r && typeof r.id === 'string'
       && /^custom-[\w-]+$/.test(r.id) && typeof r.title === 'string' && r.title.trim()).map(r => ({
         id: r.id, custom: true, category: '独自ToDo', title: r.title, start: '', deadline: '',
-        stage: eventMap[r.stage] ? r.stage : '', pdf: '○', status: '独自', caution: '', revision: ''
+        stage: eventMap[r.stage] ? r.stage : legacyEvents[r.stage] || '', pdf: '○', status: '独自', caution: '', revision: ''
       }));
     if (value.edits && typeof value.edits === 'object') for (const [id, edit] of Object.entries(value.edits)) {
       if (!/^(excel-\d+|custom-[\w-]+)$/.test(id) || !edit || typeof edit !== 'object') continue;
@@ -191,7 +217,7 @@
     }
     return state;
   }
-  const api = { options, events, eventMap, timing, initialState, validTime, minutes, eventLabel, activeEvents, activeOptions, applies, generate, printable, normalizeState };
+  const api = { options, events, eventMap, timing, initialState, validTime, minutes, eventLabel, activeEvents, activeOptions, timelineGroups, applies, generate, printable, normalizeState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PassageEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

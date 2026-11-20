@@ -52,6 +52,41 @@
     if (print) return `<span class="p-time"><strong>${label}：${esc(time || missing)}</strong><small>${esc(time ? description : '')}${original ? `<br>${esc(original)}` : row.custom ? '' : '<br>原票未記入'}</small></span>`;
     return `<div><span class="time-caption">${label}</span><span class="clock-value ${time ? '' : 'empty'}">${esc(time || missing)}</span><span class="time-relation">${esc(time ? description : '')}</span><span class="original-timing">${esc(original || (row.custom ? '独自ToDo' : '原票未記入'))}</span></div>`;
   }
+  function printTiming(row) {
+  const start = row.startTime || row.start || '';
+  const due = row.dueTime || row.deadline || '';
+
+  if (start && due) {
+    if (start === due) {
+      return `<span class="p-timing">${esc(start)}</span>`;
+    }
+
+    return `<span class="p-timing">${esc(start)} → ${esc(due)}</span>`;
+  }
+
+  if (due) {
+    return `<span class="p-timing">〜 ${esc(due)}</span>`;
+  }
+
+  if (start) {
+    return `<span class="p-timing">${esc(start)}〜</span>`;
+  }
+
+  return '';
+}
+function printSupplement(row) {
+  const parts = [];
+
+  if (row.caution) {
+    parts.push(`※ ${row.caution}`);
+  }
+
+  if (!parts.length) {
+    return '';
+  }
+
+  return `<small class="p-supplement">${parts.map(esc).join(' ／ ')}</small>`;
+}
   function detailPairs(row) {
     return [['場所', row.place], ['必要物', row.equipment], ['連携先', row.contact], ['注意点', row.caution], ['修正内容', row.revision]].filter(([,value]) => value);
   }
@@ -104,10 +139,27 @@
     const flow = E.activeEvents(state).slice().sort((a,b) => (E.minutes(state.times[a.id]) ?? Infinity) - (E.minutes(state.times[b.id]) ?? Infinity) || a.rank-b.rank);
     $('#print-document').innerHTML = `<div class="print-header"><div class="print-brand">PASSAGE / WEDDING BACK OFFICE</div><h1>${esc(state.name || '当日のバック業務ToDo')}</h1><p>${esc([state.date || '日付未入力',state.venue && `会場：${state.venue}`,state.staff && `担当：${state.staff}`].filter(Boolean).join('　'))}</p><p class="print-info">${state.course === 'western' ? '洋コース' : '和洋会席'} ｜ ${esc(conditions.join('・') || '追加条件なし')} ｜ ${state.order === 'time' ? '時刻順' : '進行順'}</p></div>
       <div class="print-flow">${flow.map(e => `<span>${esc(state.times[e.id] || '未入力')} ${esc(e.label)}</span>`).join('')}</div>
-      <p class="print-info">掲載 ${included.length}件／対象 ${items.length}件。○＝掲載、△＝補足、×＝非掲載。掲載未指定は${state.includeUnset ? '要確認として含む' : '含まない'}。完了項目も掲載。</p>
-      <div class="print-warning">時刻は進行の基準です。「前・後・完了後」など原票の条件と合わせて確認してください。空欄の時刻は補完していません。${uncertain ? `\n確認事項のある項目：${uncertain}件。原票の「確定」とは分けて要確認内容を記載しています。` : ''}</div>
-      <table class="print-table"><thead><tr><th>済</th><th>開始・期限</th><th>ToDo・メモ</th><th>必要物・連携先等</th></tr></thead><tbody>${included.map(row => `<tr class="${(row.note || '').length > 650 ? 'long-row' : ''}"><td><span class="p-check">${row.done ? '✓' : ''}</span></td><td>${timeBlock(row,'start',true)}${timeBlock(row,'due',true)}</td><td><small>${esc(row.category)}${row.custom ? '' : `／原票 ${row.row}行`}</small><strong>${esc(row.title)}</strong><span class="p-status">${row.custom ? '独自ToDo' : `原票：${esc(row.status || '未記入')}`} ／ PDF：${esc(row.pdf || '未指定（要確認）')}${row.pdf === '△' ? ' 補足' : ''}</span>${row.issues.length ? `<p class="p-note">【要確認】${row.issues.map(esc).join('／')}</p>` : ''}${row.note ? `<p class="p-note">メモ：${esc(row.note)}</p>` : ''}</td><td>${detailPairs(row).map(([name,value]) => `<small><strong>${name}：</strong>${esc(value)}</small>`).join('') || '—'}</td></tr>`).join('')}</tbody></table>
-      <p class="print-footer">元データ：バック業務確認チェックリスト.xlsx「業務確認チェックリスト」。入力・編集内容はこの婚礼用です。基準時刻から作業の所要時間や開始時刻を自動推定していません。</p>`;
+      <table class="print-table">
+  <thead>
+    <tr>
+      <th>済</th><th>タイミング</th><th>ToDo</th></tr></thead><tbody>
+      ${included.map(row => `
+        <tr>
+          <td>
+            <span class="p-check">${row.done ? '✓' : ''}</span>
+          </td>
+
+          <td>
+            ${printTiming(row)}
+          </td>
+
+          <td>
+            <strong>${esc(row.title)}</strong>
+            ${printSupplement(row)}
+          </td>
+        </tr>
+      `).join('')}
+      </tbody></table>`;
   }
   function openEditor(id = null) {
     editingId = id;

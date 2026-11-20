@@ -95,3 +95,29 @@ test('既存ToDoの進行名が表示され、和洋会席のパン切替が画�
   assert.ok(a.node('#todo-list').innerHTML.includes('HOV提供完了'));
   assert.ok(!a.node('#todo-list').innerHTML.includes('進行未指定'));
 });
+
+test('画面・PDFの先付け名がコースで切り替わり、作業のないセットアップも表示する', () => {
+  const s=E.initialState();s.times={preplate:'11:00',setup:'11:45',sashimiPreplate:'11:30'};
+  const a=app(s);
+  for(const id of ['#time-fields','#todo-list','#print-document']) assert.ok(a.node(id).innerHTML.includes('バター先付け'));
+  let html=a.node('#todo-list').innerHTML;
+  assert.ok(html.includes('stage-milestone'));
+  assert.ok(html.includes('セットアップ'));
+  assert.ok(html.indexOf('バター先付け</h3>')<html.indexOf('セットアップ</h3>'));
+  assert.equal((html.match(/<article /g)||[]).length,E.generate(rows,s).length);
+  a.handlers.change({target:{dataset:{},name:'course',value:'mixed'}});
+  for(const id of ['#time-fields','#todo-list','#print-document']) {
+    const content=a.node(id).innerHTML;
+    assert.ok(content.includes('前菜・ちらし寿司先付け'));
+    assert.ok(content.includes('刺身先付け'));
+    assert.ok(!content.includes('バター先付け'));
+  }
+  html=a.node('#todo-list').innerHTML;
+  assert.ok(html.indexOf('前菜・ちらし寿司先付け</h3>')<html.indexOf('刺身先付け</h3>'));
+  assert.ok(html.indexOf('刺身先付け</h3>')<html.indexOf('セットアップ</h3>'));
+  assert.ok(!html.includes('進行未指定'));
+  a.handlers.click({target:{closest:selector=>selector==='[data-order]'?{dataset:{order:'time'}}:null}});
+  html=a.node('#todo-list').innerHTML;
+  assert.ok(html.includes('stage-milestone'));
+  assert.ok(html.includes('<time>11:45</time>'));
+});

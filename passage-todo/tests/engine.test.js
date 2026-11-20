@@ -207,3 +207,36 @@ test('和洋会席のパン設定・完了時刻・既存のメモとチェッ�
   restored.course='western';assert.ok(get(restored,22));
   restored.course='mixed';restored.options.bread=false;assert.ok(!get(restored,22));
 });
+
+test('コースごとの先付け名・順序と刺身先付けの関連作業が一致する', () => {
+  const s=E.initialState();
+  assert.equal(E.eventLabel('preplate',s),'バター先付け');
+  assert.ok(!E.activeEvents(s).some(e=>e.id==='sashimiPreplate'));
+  assert.equal(get(s,17).title,'バター先付けを行う');
+  assert.equal(get(s,8).title,'バター先付け時刻を確認する');
+  s.course='mixed';
+  const events=E.activeEvents(s);
+  assert.equal(E.eventLabel('preplate',s),'前菜・ちらし寿司先付け');
+  assert.ok(events.findIndex(e=>e.id==='preplate')<events.findIndex(e=>e.id==='sashimiPreplate'));
+  assert.ok(events.findIndex(e=>e.id==='sashimiPreplate')<events.findIndex(e=>e.id==='setup'));
+  assert.equal(get(s,28).group,'sashimiPreplate');
+  assert.equal(get(s,29).group,'sashimiPreplate');
+  assert.equal(get(s,29).title,'刺身を先付けする');
+  assert.equal(get(s,29).deadline,'刺身先付け時');
+  assert.equal(get(s,2).deadline,'前菜・ちらし寿司先付け前');
+});
+
+test('既存の時刻・利用者の編集を保持し、刺身先付け時刻は勝手に補完しない', () => {
+  const s=E.initialState();s.course='mixed';
+  s.times={preplate:'11:00',preplateEnd:'11:15',setup:'11:45',sashimi:'12:40'};
+  s.edits['excel-8']={title:'自分で変更した作業名',note:'確認済み',done:true};
+  let restored=E.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(restored.times,s.times);
+  assert.equal(restored.times.sashimiPreplate,undefined);
+  assert.equal(get(restored,29).dueTime,'');
+  assert.equal(get(restored,8).title,'自分で変更した作業名');
+  restored.times.sashimiPreplate='11:30';
+  restored=E.normalizeState(JSON.parse(JSON.stringify(restored)));
+  assert.equal(get(restored,29).dueTime,'11:30');
+  assert.equal(restored.times.sashimi,'12:40');
+});

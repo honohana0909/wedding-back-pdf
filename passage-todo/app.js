@@ -40,7 +40,7 @@
     $('#time-fields').innerHTML = E.activeEvents(state).map(event => `<label class="time-field">${esc(event.label)}<input type="time" data-time="${event.id}" value="${esc(state.times[event.id] || '')}" aria-label="${esc(event.label)}の時刻"></label>`).join('');
   }
   function groupLabel(id) {
-    return E.eventMap[id]?.label || ({ongoing:'披露宴中・各料理の前後',unassigned:'進行未指定'}[id]) || '進行未指定';
+    return E.eventLabel(id, state) || ({ongoing:'披露宴中・各料理の前後',unassigned:'進行未指定'}[id]) || '進行未指定';
   }
   function timeBlock(row, which, print = false) {
     const start = which === 'start';
@@ -50,7 +50,7 @@
     const original = start ? row.start : row.deadline;
     const label = start ? '開始' : '期限';
     const missing = anchor ? '時刻未入力' : '時刻未指定';
-    const description = manual ? '手動指定' : anchor ? `${E.eventMap[anchor]?.label || original || '進行'}の基準` : '開始・期限の条件を参照';
+    const description = manual ? '手動指定' : anchor ? `${E.eventLabel(anchor, state) || original || '進行'}の基準` : '開始・期限の条件を参照';
     if (print) return `<span class="p-time"><strong>${label}：${esc(time || missing)}</strong><small>${esc(time ? description : '')}${original ? `<br>${esc(original)}` : row.custom ? '' : '<br>未入力'}</small></span>`;
     return `<div><span class="time-caption">${label}</span><span class="clock-value ${time ? '' : 'empty'}">${esc(time || missing)}</span><span class="time-relation">${esc(time ? description : '')}</span><span class="original-timing">${esc(original || (row.custom ? '独自ToDo' : '未入力'))}</span></div>`;
   }
@@ -126,10 +126,29 @@ function printSupplement(row) {
       if (groups.at(-1)?.id !== id) groups.push({id, rows: []});
       groups.at(-1).rows.push(row);
     }
+    // Setup is a milestone even when there is no task assigned to it.
+    if (!items.some(row => row.group === 'setup')) {
+      const setup = E.eventMap.setup;
+      const setupTime = E.minutes(state.times.setup) ?? Infinity;
+      const position = groups.findIndex(group => {
+        const first = group.rows[0];
+        if (state.order === 'progress') return first.rank > setup.rank;
+        const time = first.sortTime ?? Infinity;
+        return time > setupTime || (time === setupTime && first.rank > setup.rank);
+      });
+      groups.splice(position < 0 ? groups.length : position, 0, {id:'setup-milestone', rows:[], event:setup});
+    }
     const currentIndex = groups.findIndex(group => group.rows.some(row => !row.done));
     const visibleIds = new Set(visible.map(row => row.id));
-    const foodEvents = new Set(['preplate', 'preplateEnd', 'obire', 'hov', 'hovEnd', 'sashimi', 'soup', 'soupEnd', 'fish', 'fishEnd', 'meat', 'beef', 'tempura', 'dessert']);
+    const foodEvents = new Set(['preplate', 'preplateEnd', 'sashimiPreplate', 'obire', 'hov', 'hovEnd', 'sashimi', 'soup', 'soupEnd', 'fish', 'fishEnd', 'meat', 'beef', 'tempura', 'dessert']);
     $('#todo-list').innerHTML = visible.length ? groups.map((group, index) => {
+      if (group.event) {
+        const time = state.times[group.event.id];
+        return `<section class="timeline-stage stage-milestone" aria-labelledby="stage-${index}"><header class="stage-heading">
+          <div class="stage-time">${time ? `<time>${esc(time)}</time>` : '<span class="unset-time">時刻未入力</span>'}<small>進行の基準</small></div>
+          <div class="stage-event">${index === currentIndex + 1 && currentIndex !== -1 ? '<span class="stage-status">次の工程</span>' : ''}<h3 id="stage-${index}">${esc(E.eventLabel(group.event.id, state))}</h3></div>
+        </header></section>`;
+      }
       const groupRows = group.rows.filter(row => visibleIds.has(row.id));
       if (!groupRows.length) return '';
       const first = group.rows[0];
@@ -191,7 +210,7 @@ function printSupplement(row) {
     $('#edit-due').value = edit.dueTime || '';
     $('#edit-note').value = edit.note || '';
     for (const field of ['equipment', 'place', 'contact', 'caution']) $(`#edit-${field}`).value = row?.[field] || '';
-    $('#edit-stage').innerHTML = '<option value="">未指定</option>' + E.events.map(e => `<option value="${e.id}">${esc(e.label)}</option>`).join('');
+    $('#edit-stage').innerHTML = '<option value="">未指定</option>' + E.events.map(e => `<option value="${e.id}">${esc(E.eventLabel(e.id, state))}</option>`).join('');
     $('#edit-stage').value = row?.stage || '';
     $('#stage-label').hidden = !!row && !row.custom;
     $('#delete-custom').hidden = !row?.custom;

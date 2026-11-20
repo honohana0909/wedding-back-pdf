@@ -9,8 +9,9 @@
   const events = [
     ['arrival', '出勤', 'common'], 
     ['meeting', 'MTG', 'common'],
-    ['preplate', '先付け開始', 'common'], 
-    ['preplateEnd', '先付け完了', 'mixed'],
+    ['preplate', 'バター先付け', 'common'], 
+    ['preplateEnd', '前菜・ちらし寿司先付け完了', 'mixed'],
+    ['sashimiPreplate', '刺身先付け', 'mixed'],
     ['setup', 'セットアップ', 'common'],
     ['open', '開場', 'common'], 
     ['obire', '尾鰭椀', 'obire'],
@@ -61,8 +62,8 @@
     25: [null, 0, 'preplate', 0],
     26: [null, 0, 'preplate', 0], 
     27: [null, 0, 'preplateEnd', 0, 'preplate'],
-    28: ['preplateEnd', 1, 'sashimi', -1], 
-    29: [null, 0, 'sashimi', -1],
+    28: ['preplateEnd', 1, 'sashimiPreplate', -1, 'sashimiPreplate'], 
+    29: [null, 0, 'sashimiPreplate', 0],
     30: ['arrival', 1, 'open', -1], 
     31: ['preplate', -1, 'entrance', -1],
     32: [null, 0, 'obire', -1], 
@@ -95,9 +96,13 @@
   const validTime = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
   const minutes = value => validTime(value) ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
   const children = state => ['lunch', 'hamburg', 'childCourse'].some(key => state.options[key]);
+  function eventLabel(id, state) {
+    if (id === 'preplate' && state.course === 'mixed') return '前菜・ちらし寿司先付け';
+    return eventMap[id]?.label || '';
+  }
   function activeEvents(state) {
     return events.filter(e => e.condition === 'common' || e.condition === state.course || state.options[e.condition]
-      || (state.course === 'mixed' && state.options.bread && ['soup', 'soupEnd'].includes(e.id)));
+      || (state.course === 'mixed' && state.options.bread && ['soup', 'soupEnd'].includes(e.id))).map(e => ({...e, label:eventLabel(e.id, state)}));
   }
   function activeOptions(state) {
     return options.filter(([id]) => id !== 'bread' || state.course === 'mixed');
@@ -112,6 +117,17 @@
       return child ? !!state.options[child] : children(state);
     }
     return options.some(([id, label]) => label === row.category && state.options[id]);
+  }
+  function courseWording(row, state) {
+    // Adapt only built-in timing text; saved user edits are applied afterwards.
+    const label = eventLabel('preplate', state);
+    const timingRows = [2, 8, 16, 17, 24, 25, 26, 27, 31];
+    if (row.custom || !timingRows.includes(row.row)) return row;
+    return {...row,
+      title: row.row === 8 ? `${label}時刻を確認する` : row.title,
+      start: row.start.replaceAll('先付け', label),
+      deadline: row.deadline.replaceAll('先付け', label)
+    };
   }
   function item(row, state, index) {
     const custom = !!row.custom;
@@ -143,7 +159,7 @@
   }
   function generate(rows, state) {
     return [...rows.filter(row => applies(row, state)), ...state.custom]
-      .map((row, index) => item(row, state, index))
+      .map((row, index) => item(courseWording(row, state), state, index))
       .sort((a, b) => state.order === 'time'
         ? (a.sortTime ?? Infinity) - (b.sortTime ?? Infinity) || a.rank - b.rank || a.sortRelation - b.sortRelation || a.index - b.index
         : a.rank - b.rank || a.sortRelation - b.sortRelation || a.index - b.index);
@@ -175,7 +191,7 @@
     }
     return state;
   }
-  const api = { options, events, eventMap, timing, initialState, validTime, minutes, activeEvents, activeOptions, applies, generate, printable, normalizeState };
+  const api = { options, events, eventMap, timing, initialState, validTime, minutes, eventLabel, activeEvents, activeOptions, applies, generate, printable, normalizeState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PassageEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

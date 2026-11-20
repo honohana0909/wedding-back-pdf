@@ -67,7 +67,7 @@ test('全件を印刷し、未完了などの表示フィルターはPDFに影�
     s.options=Object.fromEntries(E.options.map(([id])=>[id,true]));
     s.edits['excel-2']={pdf:'×',done:true};s.includeUnset=false;
     const a=app(s), html=a.node('#print-document').innerHTML;
-    assert.equal((html.match(/<tr>/g)||[]).length-1,E.generate(rows,s).length);
+    assert.equal((html.match(/<tr class="p-task /g)||[]).length,E.generate(rows,s).length);
     for(const filter of ['unfinished','review','custom','all']) {
       a.handlers.change({target:{id:'filter',value:filter,dataset:{}}});
       assert.equal(a.node('#print-document').innerHTML,html);
@@ -120,4 +120,39 @@ test('画面・PDFの先付け名がコースで切り替わり、作業のな�
   html=a.node('#todo-list').innerHTML;
   assert.ok(html.includes('stage-milestone'));
   assert.ok(html.includes('<time>11:45</time>'));
+});
+
+test('PDFは工程見出しを付け、数値の時刻と元の前後条件を両方表示する', () => {
+  const s=E.initialState();
+  s.times={meeting:'10:30',preplate:'11:30',open:'12:00'};
+  const html=app(s).node('#print-document').innerHTML;
+  assert.ok(html.includes('scope="rowgroup"'));
+  assert.ok(html.includes('p-stage-food'));
+  assert.ok(html.includes('10:30 → 11:30'));
+  assert.ok(html.includes('p-relation'));
+  const row=E.generate(rows,s).find(r=>r.id==='excel-2');
+  assert.ok(html.includes(row.start));
+  assert.ok(html.includes(row.deadline));
+  assert.ok(!html.includes('undefined'));
+});
+
+test('長い注意点もPDFから省略しない', () => {
+  const s=E.initialState();
+  const caution='注意事項を最後まで表示。'.repeat(100);
+  s.edits['excel-2']={caution};
+  const html=app(s).node('#print-document').innerHTML;
+  assert.ok(html.includes(caution));
+  assert.ok(html.includes('long-row'));
+});
+
+test('印刷でもコース別の先付け名と空のセットアップを維持する', () => {
+  const s=E.initialState();s.course='mixed';s.times={preplate:'11:00',sashimiPreplate:'11:30',setup:'11:45'};
+  const html=app(s).node('#print-document').innerHTML;
+  assert.ok(html.includes('前菜・ちらし寿司先付け'));
+  assert.ok(html.includes('刺身先付け'));
+  assert.ok(html.includes('p-milestone'));
+  assert.ok(html.includes('11:45'));
+  assert.ok(!html.includes('バター先付け'));
+  assert.ok(!html.includes('undefined'));
+  assert.equal((html.match(/<tr class="p-task /g)||[]).length,E.generate(rows,s).length);
 });

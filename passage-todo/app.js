@@ -55,40 +55,17 @@
     return `<div><span class="time-caption">${label}</span><span class="clock-value ${time ? '' : 'empty'}">${esc(time || missing)}</span><span class="time-relation">${esc(time ? description : '')}</span><span class="original-timing">${esc(original || (row.custom ? '独自ToDo' : '未入力'))}</span></div>`;
   }
   function printTiming(row) {
-  const start = row.startTime || row.start || '';
-  const due = row.dueTime || row.deadline || '';
-
-  if (start && due) {
-    if (start === due) {
-      return `<span class="p-timing">${esc(start)}</span>`;
-    }
-
-    return `<span class="p-timing">${esc(start)} → ${esc(due)}</span>`;
+    const start = row.startTime || row.start || '';
+    const due = row.dueTime || row.deadline || '';
+    const main = start && due ? start === due ? start : `${start} → ${due}` : due ? `〜 ${due}` : start ? `${start}〜` : '随時';
+    // Clock anchors alone do not describe "before/after" or task dependencies.
+    const original = [row.start, row.deadline].filter(Boolean);
+    const relation = [...new Set(original)].join(' → ');
+    return `<span class="p-timing">${esc(main)}</span>${(row.startTime || row.dueTime) && relation && relation !== main ? `<small class="p-relation">${esc(relation)}</small>` : ''}`;
   }
-
-  if (due) {
-    return `<span class="p-timing">〜 ${esc(due)}</span>`;
+  function printSupplement(row) {
+    return row.caution ? `<small class="p-supplement"><span>注意</span> ${esc(row.caution)}</small>` : '';
   }
-
-  if (start) {
-    return `<span class="p-timing">${esc(start)}〜</span>`;
-  }
-
-  return '';
-}
-function printSupplement(row) {
-  const parts = [];
-
-  if (row.caution) {
-    parts.push(`※ ${row.caution}`);
-  }
-
-  if (!parts.length) {
-    return '';
-  }
-
-  return `<small class="p-supplement">${parts.map(esc).join(' ／ ')}</small>`;
-}
   function detailPairs(row) {
     return [['場所', row.place], ['必要物', row.equipment], ['連携先', row.contact], ['注意点', row.caution], ['修正内容', row.revision]].filter(([,value]) => value);
   }
@@ -174,30 +151,44 @@ function printSupplement(row) {
   function buildPrint(items = E.generate(rows, state)) {
     const included = E.printable(items, state);
     const conditions = E.activeOptions(state).filter(([id]) => state.options[id]).map(([,label]) => label);
-    const flow = E.activeEvents(state).slice().sort((a,b) => (E.minutes(state.times[a.id]) ?? Infinity) - (E.minutes(state.times[b.id]) ?? Infinity) || a.rank-b.rank);
-    $('#print-document').innerHTML = `<div class="print-header"><div class="print-brand">当日の作業メモ</div><h1>${esc(state.name || '当日のバック業務ToDo')}</h1><p>${esc([state.date || '日付未入力',state.venue && `会場：${state.venue}`,state.staff && `担当：${state.staff}`].filter(Boolean).join('　'))}</p><p class="print-info">${state.course === 'western' ? '洋コース' : '和洋会席'} ｜ ${esc(conditions.join('・') || '追加条件なし')} ｜ ${state.order === 'time' ? '時刻順' : '進行順'}</p></div>
-      <div class="print-flow">${flow.map(e => `<span>${esc(state.times[e.id] || '未入力')} ${esc(e.label)}</span>`).join('')}</div>
-      <table class="print-table">
-  <thead>
-    <tr>
-      <th>済</th><th>タイミング</th><th>ToDo</th></tr></thead><tbody>
-      ${included.map(row => `
-        <tr>
-          <td>
-            <span class="p-check">${row.done ? '✓' : ''}</span>
-          </td>
-
-          <td>
-            ${printTiming(row)}
-          </td>
-
-          <td>
-            <strong>${esc(row.title)}</strong>
-            ${printSupplement(row)}
-          </td>
-        </tr>
-      `).join('')}
-      </tbody></table>`;
+    const flow = E.activeEvents(state).filter(event => state.times[event.id]).sort((a,b) => E.minutes(state.times[a.id]) - E.minutes(state.times[b.id]) || a.rank-b.rank);
+    const food = new Set(['preplate', 'preplateEnd', 'sashimiPreplate', 'obire', 'hov', 'hovEnd', 'sashimi', 'soup', 'soupEnd', 'fish', 'fishEnd', 'meat', 'beef', 'tempura', 'dessert']);
+    const labelFor = row => groupLabel(row.group);
+    const groups = [];
+    for (const row of included) {
+      const id = state.order === 'progress' ? row.group : row.sortTime === null ? 'no-time' : String(row.sortTime);
+      if (groups.at(-1)?.id !== id) groups.push({id, rows: []});
+      groups.at(-1).rows.push(row);
+    }
+    if (!included.some(row => row.group === 'setup')) {
+      const setupTime = E.minutes(state.times.setup) ?? Infinity;
+      const rank = E.eventMap.setup.rank;
+      const position = groups.findIndex(group => {
+        const first = group.rows[0];
+        if (state.order === 'progress') return first.rank > rank;
+        const time = first.sortTime ?? Infinity;
+        return time > setupTime || (time === setupTime && first.rank > rank);
+      });
+      groups.splice(position < 0 ? groups.length : position, 0, {id:'setup', rows:[], milestone:true});
+    }
+    const course = state.course === 'western' ? '洋コース' : '和洋会席';
+    $('#print-document').innerHTML = `<header class="print-header">
+        <div class="print-heading"><div><p class="print-brand">当日の作業メモ</p><h1>${esc(state.name || '婚礼の進行チェックリスト')}</h1></div><div class="print-total"><strong>${included.length}</strong><span>項目</span></div></div>
+        <p class="print-meta"><span><b>日付</b> ${esc(state.date || '未入力')}</span><span><b>会場</b> ${esc(state.venue || '未入力')}</span><span><b>担当</b> ${esc(state.staff || '未入力')}</span></p>
+        <p class="print-info">${esc(course)}${conditions.length ? ` ／ ${esc(conditions.join('・'))}` : ''}<span>${state.order === 'time' ? '時刻順' : '進行順'}</span></p>
+      </header>
+      ${flow.length ? `<div class="print-flow">${flow.map(e => `<span><b>${esc(state.times[e.id])}</b> ${esc(e.label)}</span>`).join('')}</div>` : ''}
+      <table class="print-table"><colgroup><col class="p-check-col"><col class="p-time-col"><col></colgroup>
+        <thead><tr><th scope="col">済</th><th scope="col">タイミング</th><th scope="col">やること・注意点</th></tr></thead>
+        ${groups.map(group => {
+          if (group.milestone) return `<tbody><tr class="p-stage p-milestone"><th colspan="3" scope="rowgroup">${state.times.setup ? `<time>${esc(state.times.setup)}</time>` : ''}セットアップ</th></tr></tbody>`;
+          const first = group.rows[0];
+          const time = state.order === 'progress' ? state.times[first.group] : first.startTime || first.dueTime;
+          const label = [...new Set(group.rows.map(labelFor))].join(' ／ ');
+          return `<tbody><tr class="p-stage ${group.rows.every(row => food.has(row.group)) ? 'p-stage-food' : ''}"><th colspan="3" scope="rowgroup">${time ? `<time>${esc(time)}</time>` : ''}${esc(label)}</th></tr>
+            ${group.rows.map(row => `<tr class="p-task ${row.done ? 'p-done' : ''} ${row.title.length + (row.caution || '').length > 700 ? 'long-row' : ''}"><td><span class="p-check">${row.done ? '✓' : ''}</span></td><td>${printTiming(row)}</td><td><strong class="p-task-title">${esc(row.title)}</strong>${printSupplement(row)}</td></tr>`).join('')}</tbody>`;
+        }).join('')}
+      </table>`;
   }
   function openEditor(id = null) {
     editingId = id;

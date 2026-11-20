@@ -15,16 +15,17 @@
 <div class="screen-app">
   <header class="site-header">
     <a class="brand" href="#"><span class="brand-mark" aria-hidden="true">P</span><span>PASSAGE<small>WEDDING BACK OFFICE</small></span></a>
-    <div class="header-actions"><span id="save-status" role="status">このブラウザーに自動保存</span><button class="button primary" id="print-top">印刷・PDF保存 <span aria-hidden="true">↗</span></button></div>
+    <div class="header-actions"><span id="save-status" role="status">このブラウザーに自動保存</span><button class="button primary" id="print-top">印刷・PDF保存</button></div>
   </header>
   <main>
     <section class="intro">
-      <div><p class="eyebrow">YOUR DAY, IN ORDER</p><h1>準備から、お開きまで。</h1><p>当日の条件と時刻をそろえて、バック業務を一枚の流れに。</p></div>
+      <div><p class="eyebrow">YOUR DAY, IN ORDER</p><h1>準備から、お開きまで。</h1><p>時刻を見て、進行を追って、ひとつずつ。婚礼当日の仕事のレシピ。</p></div>
       <div class="source-stamp"><span class="tiny-label">業務データ</span><strong>確認チェックリスト</strong><span>Excel原票 · 52項目</span></div>
     </section>
     <div class="workspace">
       <aside class="setup-panel" aria-label="当日の設定">
-        <div class="panel-heading"><span class="step">01</span><h2>当日の設定</h2></div>
+        <details id="setup-disclosure" open>
+        <summary class="panel-heading setup-heading"><h2>当日の設定</h2><span class="disclosure-label">開く・閉じる</span></summary>
         <div class="setup-body">
           <label>婚礼名<input id="wedding-name" data-state="name" placeholder="例：山田家・佐藤家" maxlength="120"></label>
           <div class="two-fields"><label>日付<input type="date" data-state="date" id="wedding-date"></label><label>会場<input data-state="venue" placeholder="会場名" maxlength="100"></label></div>
@@ -38,15 +39,16 @@
           <p class="hint">同日内の進行に対応。オプションの順序は当日の時刻で調整してください。</p>
           <details class="source-help"><summary>元データと保存について</summary><p>Excelの本文・開始・期限・必要物・連携先・注意点・確認状態・PDF掲載を保持しています。元の「確定」と、時刻や掲載方針の要確認は別々に表示します。</p><p>入力内容はこのブラウザー内だけに保存します。別の端末やURLには同期しません。</p><button id="reset" class="text-button danger">入力を消去して新しい婚礼を作る</button></details>
         </div>
+        </details>
       </aside>
       <section class="todo-panel" aria-labelledby="todo-heading">
-        <div class="panel-heading list-heading"><div><span class="step">02</span><h2 id="todo-heading">当日のToDo</h2></div><button id="add-todo" class="button secondary">＋ ToDoを追加</button></div>
+        <div class="panel-heading list-heading"><div><h2 id="todo-heading">当日の流れとToDo</h2></div><button id="add-todo" class="button secondary">＋ ToDoを追加</button></div>
         <div class="summary-strip"><div><strong id="total-count">0</strong><span>対象ToDo</span></div><div><strong id="done-count">0</strong><span>完了</span></div><div class="review-stat"><strong id="review-count">0</strong><span>確認事項あり</span></div><div class="progress-track"><span id="progress-bar"></span></div></div>
         <div id="review-notice" class="review-notice"></div>
         <div class="toolbar"><div class="view-options" role="group" aria-label="並び順"><button data-order="progress" aria-pressed="true">進行順</button><button data-order="time" aria-pressed="false">時刻順</button></div><label class="filter-label">表示<select id="filter"><option value="all">すべて</option><option value="unfinished">未完了</option><option value="review">確認事項あり</option><option value="custom">独自ToDo</option></select></label></div>
         <p class="sort-hint" id="sort-hint"></p>
         <div id="todo-list"></div>
-        <section class="print-settings" aria-label="印刷設定"><div><h3>そのまま、現場へ。</h3><p>画面の絞り込みに関係なく、PDF掲載対象を印刷します。</p><label class="check-label"><input type="checkbox" id="include-unset" checked> PDF掲載が未指定の項目も「要確認」として含める</label><p id="print-count" class="hint"></p></div><button class="button primary" id="print-bottom">印刷・PDF保存 ↗</button></section>
+        <section class="print-settings" aria-label="印刷設定"><div><h3>そのまま、現場へ。</h3><p>画面の絞り込みに関係なく、PDF掲載対象を印刷します。</p><label class="check-label"><input type="checkbox" id="include-unset" checked> PDF掲載が未指定の項目も「要確認」として含める</label><p id="print-count" class="hint"></p></div><button class="button primary" id="print-bottom">印刷・PDF保存</button></section>
       </section>
     </div>
     <footer>PASSAGE <span>当日の業務を、ひとつずつ。</span><a href="./README.md">使い方・公開方法</a></footer>

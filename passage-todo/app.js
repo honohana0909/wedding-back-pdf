@@ -48,7 +48,7 @@
     const original = start ? row.start : row.deadline;
     const label = start ? '開始' : '期限';
     const missing = anchor ? '時刻未入力' : '時刻未指定';
-    const description = manual ? '手動指定' : anchor ? `${E.eventMap[anchor].label}の基準` : '原票の条件を参照';
+    const description = manual ? '手動指定' : anchor ? `${E.eventMap[anchor]?.label || original || '進行'}の基準` : '原票の条件を参照';
     if (print) return `<span class="p-time"><strong>${label}：${esc(time || missing)}</strong><small>${esc(time ? description : '')}${original ? `<br>${esc(original)}` : row.custom ? '' : '<br>原票未記入'}</small></span>`;
     return `<div><span class="time-caption">${label}</span><span class="clock-value ${time ? '' : 'empty'}">${esc(time || missing)}</span><span class="time-relation">${esc(time ? description : '')}</span><span class="original-timing">${esc(original || (row.custom ? '独自ToDo' : '原票未記入'))}</span></div>`;
   }
@@ -95,11 +95,13 @@ function printSupplement(row) {
     const titleChanged = source && source.title !== row.title;
     return `<article class="todo-card ${row.done ? 'is-done' : ''}" data-id="${esc(row.id)}">
       <div class="todo-top"><label class="done-label"><input type="checkbox" data-done="${esc(row.id)}" ${row.done ? 'checked' : ''} aria-label="${esc(row.title)}を完了"></label><h3 class="todo-title">${esc(row.title)}</h3><button class="edit-button" data-edit="${esc(row.id)}" aria-label="${esc(row.title)}を編集">編集</button></div>
+      <div class="task-timing"><span><b>開始</b>${esc(row.startManual || row.start || row.startTime || '未指定')}</span><span><b>期限</b>${esc(row.dueManual || row.deadline || row.dueTime || '未指定')}</span></div>
+      <details class="todo-details"><summary>詳細・メモ${row.issues.length ? '<span class="tag warn">要確認</span>' : row.caution ? '<span class="tag warn">注意あり</span>' : ''}</summary>
       <div class="tags"><span class="tag">${esc(row.category)}</span><span class="tag gray">${row.custom ? '独自ToDo' : `原票：${esc(row.status || '未記入')}`}</span>${row.issues.length ? '<span class="tag warn">要確認</span>' : ''}${row.pdf === '△' ? '<span class="tag gray">PDF：補足</span>' : row.pdf === '×' ? '<span class="tag gray">PDF：非掲載</span>' : row.pdf === '' ? '<span class="tag warn">PDF：未指定</span>' : ''}${row.startManual || row.dueManual ? '<span class="tag gray">時刻を手動指定</span>' : ''}</div>
       <div class="timing-grid">${timeBlock(row, 'start')}${timeBlock(row, 'due')}</div>
       ${row.note ? `<p class="item-note">${esc(row.note)}</p>` : ''}
       ${row.issues.length ? `<div class="item-issues">${row.issues.map(esc).join('<br>')}</div>` : ''}
-      <details class="todo-details"><summary>必要物・連携先・原票を見る</summary><dl class="details-grid">${detailPairs(row).map(([name,value]) => `<dt>${name}</dt><dd>${esc(value)}</dd>`).join('')}${titleChanged ? `<dt>元のToDo</dt><dd>${esc(source.title)}</dd>` : ''}<dt>出典</dt><dd>${row.custom ? '利用者が追加' : `業務確認チェックリスト ${row.row}行目`}</dd><dt>PDF掲載</dt><dd>${esc(row.pdf || '未指定')} ${row.pdf === '△' ? '補足として掲載' : row.pdf === '×' ? '掲載しない' : row.pdf === '' ? '印刷設定に従う（要確認表示）' : '掲載'}</dd></dl></details>
+      <dl class="details-grid">${detailPairs(row).map(([name,value]) => `<dt>${name}</dt><dd>${esc(value)}</dd>`).join('')}${titleChanged ? `<dt>元のToDo</dt><dd>${esc(source.title)}</dd>` : ''}<dt>出典</dt><dd>${row.custom ? '利用者が追加' : `業務確認チェックリスト ${row.row}行目`}</dd><dt>PDF掲載</dt><dd>${esc(row.pdf || '未指定')} ${row.pdf === '△' ? '補足として掲載' : row.pdf === '×' ? '掲載しない' : row.pdf === '' ? '印刷設定に従う（要確認表示）' : '掲載'}</dd></dl></details>
     </article>`;
   }
   function render() {
@@ -116,17 +118,35 @@ function printSupplement(row) {
       ? '開始の進行を優先し、開始が作業条件の場合は期限を目安に表示。同じ進行では「前 → 時点 → 後」。'
       : '開始の基準時刻（手動指定を優先）→ 期限の基準時刻で整列。時刻がない項目は最後に表示。';
     const visible = items.filter(row => filter === 'all' || (filter === 'unfinished' && !row.done) || (filter === 'review' && row.issues.length) || (filter === 'custom' && row.custom));
-    let last = null;
-    $('#todo-list').innerHTML = visible.length ? visible.map(row => {
-      const group = state.order === 'progress' ? row.group : row.sortTime === null ? 'no-time' : String(row.sortTime);
-      let heading = '';
-      if (group !== last) {
-        const label = state.order === 'progress' ? groupLabel(row.group) : row.startTime || row.dueTime || '時刻未指定';
-        const subtitle = state.order === 'progress' ? state.times[row.group] || '時刻未入力' : '基準時刻／手動指定';
-        heading = `<h3 class="group-title">${esc(label)}<small>${esc(subtitle)}</small></h3>`;
-        last = group;
-      }
-      return heading + card(row);
+    // Presentation only: preserve the engine's order, grouping and generated tasks.
+    const groupKey = row => state.order === 'progress' ? row.group : row.sortTime === null ? 'no-time' : String(row.sortTime);
+    const groups = [];
+    for (const row of items) {
+      const id = groupKey(row);
+      if (groups.at(-1)?.id !== id) groups.push({id, rows: []});
+      groups.at(-1).rows.push(row);
+    }
+    const currentIndex = groups.findIndex(group => group.rows.some(row => !row.done));
+    const visibleIds = new Set(visible.map(row => row.id));
+    const foodEvents = new Set(['preplate', 'preplateEnd', 'obire', 'hov', 'hovEnd', 'sashimi', 'soup', 'soupEnd', 'fish', 'fishEnd', 'meat', 'beef', 'tempura', 'dessert']);
+    $('#todo-list').innerHTML = visible.length ? groups.map((group, index) => {
+      const groupRows = group.rows.filter(row => visibleIds.has(row.id));
+      if (!groupRows.length) return '';
+      const first = group.rows[0];
+      const labels = [...new Set(group.rows.map(row => groupLabel(row.group)))];
+      const label = state.order === 'progress' ? groupLabel(first.group) : labels.join(' ／ ');
+      const time = state.order === 'progress' ? state.times[first.group] : first.startTime || first.dueTime;
+      const missing = state.order === 'progress' && E.eventMap[first.group] ? '時刻未入力' : '時刻未指定';
+      const isCurrent = index === currentIndex;
+      const isFood = group.rows.every(row => foodEvents.has(row.group));
+      const isDone = group.rows.every(row => row.done);
+      return `<section class="timeline-stage ${isFood ? 'is-food' : ''} ${isCurrent ? 'is-current' : ''} ${isDone ? 'stage-done' : ''}" aria-labelledby="stage-${index}">
+        <header class="stage-heading">
+          <div class="stage-time">${time ? `<time>${esc(time)}</time>` : `<span class="unset-time">${missing}</span>`}<small>${state.order === 'progress' ? '進行の基準' : '作業の基準'}</small></div>
+          <div class="stage-event">${isCurrent ? '<span class="stage-status">ここから <small>未完了の先頭</small></span>' : index === currentIndex + 1 && currentIndex !== -1 ? '<span class="stage-status">次の工程</span>' : isDone ? '<span class="stage-status">完了</span>' : ''}<h3 id="stage-${index}">${esc(label)}</h3></div>
+        </header>
+        <div class="stage-tasks">${groupRows.map(card).join('')}</div>
+      </section>`;
     }).join('') : '<div class="empty-state">この条件に該当するToDoはありません。</div>';
     const printed = E.printable(items, state);
     $('#print-count').textContent = `印刷対象 ${printed.length}件 ／ 非掲載 ${items.length - printed.length}件。A4縦・複数ページ対応。`;
@@ -234,6 +254,7 @@ function printSupplement(row) {
   });
   for (const id of ['print-top','print-bottom']) $(`#${id}`).addEventListener('click', () => { buildPrint(); window.print(); });
   window.addEventListener('beforeprint', () => buildPrint());
+  $('#setup-disclosure').open = !window.matchMedia('(max-width: 760px)').matches;
   fillSetup(); render();
   if (storageBlocked) $('#save-status').textContent = '保存データの読み込みに失敗';
 })();

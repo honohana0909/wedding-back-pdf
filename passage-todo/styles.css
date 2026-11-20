@@ -3,6 +3,186 @@
 @media(min-width:1500px){.workspace{grid-template-columns:350px minmax(0,1fr);gap:40px}}
 @media(max-width:1000px){.workspace{grid-template-columns:300px minmax(0,1fr);gap:22px}.summary-strip{gap:16px}.progress-track{display:none}.source-stamp{display:none}.print-settings{display:block}.print-settings>.button{margin-top:16px}.setup-body{padding:18px}.header-actions{gap:12px}}
 @media(max-width:760px){.site-header{height:72px;padding:0 18px}.brand{font-size:18px}.brand small{font-size:6px}.brand-mark{height:36px;width:28px}#save-status{display:none}.header-actions .button{padding:9px 12px;font-size:10px}main{padding:0 18px}.intro{padding:29px 0 26px}h1{font-size:25px;letter-spacing:1px}.intro p:not(.eyebrow){font-size:11px}.workspace{display:block}.setup-panel{margin-bottom:24px}.time-fields{grid-template-columns:1fr 1fr;gap:10px 20px}.time-field{display:block}.time-field input{margin-top:4px!important}.option-grid{grid-template-columns:1fr 1fr}.summary-strip{gap:25px}.todo-card{padding:15px 12px}.todo-title{font-size:13px}.tags,.timing-grid,.todo-details,.item-note,.item-issues{margin-left:27px}.timing-grid{gap:8px}.list-heading{padding-top:5px}.source-help{margin-top:15px}footer{flex-wrap:wrap}footer a{margin-left:0}.summary-strip strong{font-size:25px}.summary-strip span{font-size:10px}.view-options button{padding:7px 13px}.filter-label{font-size:10px}.filter-label select{max-width:135px}}
+/* Screen-only recipe timeline. The compact print document below is unchanged. */
+@media screen {
+  :root {
+    --ink: #202e29;
+    --muted: #58645b;
+    --paper: #f1eee5;
+    --line: #cecfc1;
+    --green: #193e32;
+    --soft: #e7ece3;
+    --amber: #785014;
+    --amber-bg: #f4e8c9;
+    font-size: 16px;
+  }
+  .site-header { background: #19392f; color: #fffaf0; height: 84px; border-bottom: 4px solid #b6a06c; }
+  .brand-mark { border-color: #c4b78e; }
+  .brand small { font-size: 9px; }
+  #save-status { color: #deded0; font-size: 13px; }
+  .header-actions .primary { background: #f2ebda; color: var(--green); }
+  .header-actions .primary:hover { background: #fffaf0; }
+  main { max-width: 1500px; padding: 0 4%; }
+  .intro { padding: 32px 0; }
+  .eyebrow { color: var(--green); font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+  h1 { font-size: 32px; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px; }
+  .intro p:not(.eyebrow) { font-size: 14px; }
+  .source-stamp { font-size: 13px; border-color: #9caa99; }
+  .source-stamp strong { font-size: 14px; }
+  .tiny-label { font-size: 12px; }
+  .workspace { grid-template-columns: 310px minmax(0, 1fr); gap: 32px; }
+  .setup-panel { background: #faf9f3; border-radius: 4px; }
+  .setup-heading { justify-content: space-between; padding: 18px; background: #e6e9df; list-style: none; }
+  .setup-heading::-webkit-details-marker { display: none; }
+  .setup-heading h2 { font-size: 17px; }
+  .disclosure-label { font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+  .setup-body { padding: 18px; }
+  h2 { font-size: 21px; }
+  h3 { font-size: 16px; }
+  label, legend { font-size: 14px; }
+  input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px; min-width: 0; min-height: 44px; border-color: #b7c0b3; border-radius: 4px; }
+  input[type=checkbox] { width: 20px; height: 20px; margin: 0; }
+  .option-grid { grid-template-columns: 1fr; gap: 0; }
+  .option-grid label { font-size: 14px; min-height: 44px; gap: 10px; }
+  .course-options span { padding-left: 29px; font-size: 14px; }
+  .course-options input { left: 9px; top: 16px; }
+  legend small { display: block; margin-left: 0; font-size: 12px; }
+  .hint, .source-help, .text-button { font-size: 13px; }
+  .time-field { grid-template-columns: minmax(0, 1fr) 112px; }
+  .time-field input { min-height: 44px!important; }
+  .list-heading { padding: 0 0 16px; border-bottom: 2px solid var(--green); gap: 12px; }
+  .button { min-height: 44px; padding: 10px 15px; font-size: 14px; border-radius: 4px; }
+  .summary-strip { padding: 16px 0; gap: 25px; }
+  .summary-strip strong { font: 600 27px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .summary-strip span { font-size: 13px; }
+  .review-notice { font-size: 13px; padding: 10px 13px; border-left: 3px solid #ab802e; }
+  .toolbar { margin-top: 18px; }
+  .view-options { background: #e0e3d8; }
+  .view-options button { font-size: 14px; min-height: 44px; padding: 8px 16px; }
+  .view-options button[aria-pressed=true] { background: var(--green); color: white; box-shadow: none; }
+  .filter-label, .filter-label select { font-size: 14px; }
+  .filter-label select { min-height: 44px; }
+  .sort-hint { font-size: 12px; margin: 10px 0 24px; }
+  .todo-panel { min-width: 0; }
+  #todo-list { position: relative; }
+  .timeline-stage { --stage-color: var(--green); position: relative; padding-left: 30px; padding-bottom: 28px; }
+  .timeline-stage::before { content: ''; position: absolute; left: 8px; top: 30px; bottom: -30px; width: 2px; background: #aab5a5; }
+  .timeline-stage:last-child::before { bottom: 28px; }
+  .timeline-stage::after { content: ''; position: absolute; left: 1px; top: 29px; width: 16px; height: 16px; border-radius: 50%; background: var(--stage-color); border: 3px solid var(--paper); box-shadow: 0 0 0 1px var(--stage-color); }
+  .timeline-stage.is-food { --stage-color: #803e36; }
+  .stage-heading { display: flex; align-items: center; gap: 22px; min-height: 88px; padding: 15px 20px; background: #e4e9de; border: 1px solid #c5cfbe; border-top: 3px solid var(--stage-color); border-radius: 4px 4px 0 0; }
+  .is-food .stage-heading { background: #eee0d8; border-color: #d8bfb2; border-top-color: var(--stage-color); }
+  .stage-time { flex: 0 0 112px; color: var(--stage-color); }
+  .stage-time time { display: block; font: 700 30px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -1px; }
+  .stage-time small { display: block; font-size: 12px; margin-top: 4px; color: var(--muted); }
+  .unset-time { font-size: 16px; font-weight: 700; }
+  .stage-event { min-width: 0; border-left: 1px solid #b8c4b4; padding-left: 22px; }
+  .stage-event h3 { font-size: 20px; line-height: 1.45; color: var(--stage-color); overflow-wrap: anywhere; }
+  .stage-status { display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--stage-color); }
+  .stage-status small { font-size: 12px; margin-left: 8px; }
+  .is-current .stage-heading { background: var(--stage-color); border-color: var(--stage-color); }
+  .is-current .stage-time, .is-current .stage-time small, .is-current .stage-event h3, .is-current .stage-status { color: #fffbef; }
+  .is-current .stage-event { border-color: #ffffff55; }
+  .is-current::after { box-shadow: 0 0 0 3px var(--stage-color); }
+  .stage-tasks { background: #fffef9; border: 1px solid #cbd0c3; border-top: 0; border-radius: 0 0 4px 4px; overflow: hidden; }
+  .todo-card { background: transparent; border: 0; border-bottom: 1px solid #e0e1d7; border-radius: 0; padding: 16px 18px 10px; margin: 0; }
+  .todo-card:last-child { border-bottom: 0; }
+  .todo-top { gap: 10px; align-items: flex-start; }
+  .todo-top>.done-label { padding: 10px 6px 10px 0; display: flex; cursor: pointer; min-width: 30px; }
+  .todo-title { font-size: 16px; line-height: 1.65; padding-top: 6px; font-weight: 650; }
+  .edit-button { font-size: 13px; min-height: 44px; min-width: 44px; padding: 6px; }
+  .edit-button:hover { color: var(--green); background: var(--soft); }
+  .todo-card.is-done { background: #f2f3ed; }
+  .todo-card.is-done .todo-title { color: #627063; }
+  .task-timing { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 2px 0 0 40px; font-size: 13px; color: var(--muted); }
+  .task-timing span { overflow-wrap: anywhere; }
+  .task-timing b { color: var(--ink); font-size: 12px; margin-right: 8px; font-weight: 600; }
+  .todo-details { margin: 2px 0 0 40px; font-size: 14px; }
+  .todo-details summary { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; color: var(--muted); list-style: none; width: fit-content; }
+  .todo-details summary::-webkit-details-marker { display: none; }
+  .todo-details summary::before { content: '+'; font-size: 18px; line-height: 1; width: 12px; }
+  .todo-details[open] summary::before { content: '−'; }
+  .todo-details[open] { padding-bottom: 10px; }
+  .tags { margin: 8px 0 12px; }
+  .tag { font-size: 12px; padding: 2px 6px; }
+  .timing-grid { margin-left: 0; border-top-color: var(--line); }
+  .time-caption, .time-relation { font-size: 12px; }
+  .original-timing { font-size: 14px; }
+  .clock-value { font-size: 17px; }
+  .clock-value.empty { font-size: 13px; color: var(--muted); }
+  .details-grid { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; margin: 15px 0 0; }
+  .details-grid dt { color: var(--muted); }
+  .item-note, .item-issues { margin-left: 0; font-size: 14px; }
+  .item-issues { padding: 10px; background: var(--amber-bg); border-left: 3px solid #ab802e; }
+  .print-settings { margin-top: 12px; background: #e4e9de; border-color: #c5cfbe; border-radius: 4px; }
+  .print-settings p, .check-label { font-size: 13px; }
+  footer { color: var(--muted); }
+  footer span, footer a { font-size: 12px; }
+  dialog { background: #fffef9; border-radius: 5px; }
+  #edit-error { font-size: 14px; }
+}
+@media screen and (max-width: 1100px) {
+  .workspace { grid-template-columns: 280px minmax(0, 1fr); gap: 22px; }
+  .summary-strip { gap: 18px; flex-wrap: wrap; }
+  .progress-track { display: none; }
+  .stage-heading { padding: 14px; gap: 15px; }
+  .stage-time { flex-basis: 100px; }
+  .stage-event { padding-left: 15px; }
+  .stage-event h3 { font-size: 18px; }
+  .source-stamp { display: none; }
+  .print-settings { display: block; }
+  .print-settings>.button { margin-top: 16px; }
+}
+@media screen and (max-width: 760px) {
+  .site-header { height: 72px; padding: 0 16px; }
+  .brand { font-size: 18px; gap: 8px; letter-spacing: 2px; }
+  .brand small { font-size: 7px; letter-spacing: 1px; }
+  #save-status { display: none; }
+  .header-actions .button { font-size: 13px; padding: 8px 12px; }
+  main { padding: 0 16px; }
+  .intro { padding: 25px 0; }
+  h1 { font-size: 27px; }
+  .intro p:not(.eyebrow) { font-size: 14px; max-width: 28em; }
+  .workspace { display: block; }
+  .setup-panel { margin-bottom: 24px; }
+  .setup-heading { padding: 14px 16px; }
+  .option-grid { grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  .time-fields { grid-template-columns: 1fr 1fr; gap: 14px; }
+  .time-field { display: block; }
+  .time-field input { margin-top: 5px!important; }
+  .list-heading h2 { font-size: 19px; }
+  .list-heading .button { font-size: 13px; padding: 8px 10px; }
+  .summary-strip { gap: 15px; }
+  .summary-strip>div:not(.progress-track) { gap: 6px; }
+  .summary-strip strong { font-size: 24px; }
+  .summary-strip span { font-size: 12px; }
+  .toolbar { gap: 8px; flex-wrap: wrap; }
+  .view-options button { padding: 8px 13px; }
+  .filter-label { gap: 6px; }
+  .filter-label select { max-width: 150px; }
+  .timeline-stage { padding-left: 20px; padding-bottom: 22px; }
+  .timeline-stage::before { left: 5px; }
+  .timeline-stage::after { left: -2px; }
+  .timeline-stage:last-child::before { bottom: 22px; }
+  .stage-heading { gap: 12px; padding: 14px 12px; }
+  .stage-time { flex-basis: 90px; }
+  .stage-time time { font-size: 27px; }
+  .unset-time { font-size: 14px; }
+  .stage-time small { font-size: 12px; }
+  .stage-event { padding-left: 12px; }
+  .stage-event h3 { font-size: 17px; }
+  .stage-status small { display: block; margin-left: 0; }
+  .todo-card { padding: 12px 10px 6px; }
+  .todo-top { gap: 6px; }
+  .todo-top>.done-label { min-width: 26px; }
+  .todo-title { font-size: 16px; }
+  .task-timing, .todo-details { margin-left: 32px; }
+  .task-timing { display: grid; gap: 3px; }
+  .timing-grid { grid-template-columns: 1fr; gap: 12px; }
+  .tags, .timing-grid, .item-note, .item-issues { margin-left: 0; }
+  .print-settings { padding: 18px; }
+  footer { margin-top: 28px; gap: 10px; }
+}
 @page {size: A4 portrait;margin: 7mm;}
 @media print {
 

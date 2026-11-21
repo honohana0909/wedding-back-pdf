@@ -153,21 +153,6 @@
     "pdf": "○"
   },
   {
-    "id": "excel-12",
-    "row": 12,
-    "category": "共通",
-    "title": "料理担当と料理進行を確認する",
-    "start": "乾杯後〜披露宴中",
-    "deadline": "披露宴中随時",
-    "place": "",
-    "equipment": "",
-    "contact": "料理担当",
-    "caution": "",
-    "status": "確定",
-    "revision": "",
-    "pdf": "○"
-  },
-  {
     "id": "excel-13",
     "row": 13,
     "category": "共通",

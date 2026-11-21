@@ -13,7 +13,7 @@
     storageBlocked = true;
     storageMessage = '保存データを読み込めません。現在の入力は保存されません。「新しい婚礼を作る」で保存を再開できます。';
   }
-  let filter = 'all', editingId = null;
+  let filter = 'all', editingId = null, editingEventId = null;
   const dialog = $('#edit-dialog');
 
   function save() {
@@ -37,7 +37,26 @@
     $('#option-fields').innerHTML = E.activeOptions(state).map(([id, label]) => `<label><input type="checkbox" data-option="${id}" ${state.options[id] ? 'checked' : ''}>${esc(label)}</label>`).join('');
   }
   function renderTimes() {
-    $('#time-fields').innerHTML = E.activeEvents(state).map(event => `<label class="time-field">${esc(event.label)}<input type="time" data-time="${event.id}" value="${esc(state.times[event.id] || '')}" aria-label="${esc(event.label)}の時刻"></label>`).join('');
+    $('#time-fields').innerHTML = E.chronologicalEvents(state).map(event => `<div class="time-entry ${E.isFoodEvent(event.id,state) ? 'is-food' : ''}"><label class="time-field">${esc(event.label)}<input type="time" data-time="${event.id}" value="${esc(state.times[event.id] || '')}" aria-label="${esc(event.label)}の時刻"></label>${event.custom ? `<button type="button" class="event-edit text-button" data-edit-event="${event.id}" aria-label="${esc(event.label)}を編集">編集</button>` : ''}</div>`).join('');
+  }
+  function foodNote(food, print = false) {
+    return food ? `<small class="${print ? 'p-food-note' : 'food-note'}">${esc(E.foodNote)}</small>` : '';
+  }
+  function openEventEditor(id = null) {
+    editingEventId = id;
+    const event = state.customEvents.find(e => e.id === id);
+    $('#event-dialog-title').textContent = event ? '進行イベントを編集' : '進行イベントを追加';
+    $('#event-name').value = event?.label || '';
+    $('#event-time').value = state.times[id] || '';
+    $('#event-kind').value = event?.kind || 'progress';
+    $('#event-error').textContent = '';
+    $('#delete-event').hidden = !event;
+    updateEventColor();
+    $('#event-dialog').showModal();
+    $('#event-name').focus();
+  }
+  function updateEventColor() {
+    $('#event-clock-label').classList.toggle('is-food', $('#event-kind').value === 'food');
   }
   function groupLabel(id) {
     return E.eventLabel(id, state) || ({ongoing:'披露宴中・各料理の前後',unassigned:'進行未指定'}[id]) || '進行未指定';
@@ -98,13 +117,12 @@
     const groups = E.timelineGroups(items, state);
     const currentIndex = groups.findIndex(group => group.rows.some(row => !row.done));
     const visibleIds = new Set(visible.map(row => row.id));
-    const foodEvents = new Set(['preplate', 'sashimiPreplate', 'childMeal', 'obire', 'hov', 'soup', 'breadAfterSoup', 'fish', 'breadAfterFish', 'meat', 'cakeDessert', 'beef', 'tempura', 'dessert']);
-    $('#todo-list').innerHTML = visible.length ? groups.map((group, index) => {
+    $('#todo-list').innerHTML = (visible.length || filter === 'all') ? groups.map((group, index) => {
       if (group.event) {
         const time = state.times[group.event.id];
-        return `<section class="timeline-stage stage-milestone ${foodEvents.has(group.event.id) ? 'is-food' : ''}" aria-labelledby="stage-${index}"><header class="stage-heading">
+        return `<section class="timeline-stage stage-milestone ${E.isFoodEvent(group.event.id,state) ? 'is-food' : ''}" aria-labelledby="stage-${index}"><header class="stage-heading">
           <div class="stage-time">${time ? `<time>${esc(time)}</time>` : '<span class="unset-time">時刻未入力</span>'}<small>進行の基準</small></div>
-          <div class="stage-event">${index === currentIndex + 1 && currentIndex !== -1 ? '<span class="stage-status">次の工程</span>' : ''}<h3 id="stage-${index}">${esc(E.eventLabel(group.event.id, state))}</h3></div>
+          <div class="stage-event">${index === currentIndex + 1 && currentIndex !== -1 ? '<span class="stage-status">次の工程</span>' : ''}<div class="stage-title"><h3 id="stage-${index}">${esc(E.eventLabel(group.event.id, state))}</h3>${foodNote(E.isFoodEvent(group.event.id,state))}</div></div>
         </header></section>`;
       }
       const groupRows = group.rows.filter(row => visibleIds.has(row.id));
@@ -113,14 +131,14 @@
       const labels = [...new Set(group.rows.map(row => groupLabel(row.group)))];
       const label = state.order === 'progress' ? groupLabel(first.group) : labels.join(' ／ ');
       const time = state.order === 'progress' ? state.times[first.group] : first.startTime || first.dueTime;
-      const missing = state.order === 'progress' && E.eventMap[first.group] ? '時刻未入力' : '時刻未指定';
+      const missing = state.order === 'progress' && E.eventLabel(first.group,state) ? '時刻未入力' : '時刻未指定';
       const isCurrent = index === currentIndex;
-      const isFood = group.rows.every(row => foodEvents.has(row.group));
+      const isFood = group.rows.every(row => E.isFoodEvent(row.group,state));
       const isDone = group.rows.every(row => row.done);
       return `<section class="timeline-stage ${isFood ? 'is-food' : ''} ${isCurrent ? 'is-current' : ''} ${isDone ? 'stage-done' : ''}" aria-labelledby="stage-${index}">
         <header class="stage-heading">
           <div class="stage-time">${time ? `<time>${esc(time)}</time>` : `<span class="unset-time">${missing}</span>`}<small>${state.order === 'progress' ? '進行の基準' : '作業の基準'}</small></div>
-          <div class="stage-event">${isCurrent ? '<span class="stage-status">ここから <small>未完了の先頭</small></span>' : index === currentIndex + 1 && currentIndex !== -1 ? '<span class="stage-status">次の工程</span>' : isDone ? '<span class="stage-status">完了</span>' : ''}<h3 id="stage-${index}">${esc(label)}</h3></div>
+          <div class="stage-event">${isCurrent ? '<span class="stage-status">ここから <small>未完了の先頭</small></span>' : index === currentIndex + 1 && currentIndex !== -1 ? '<span class="stage-status">次の工程</span>' : isDone ? '<span class="stage-status">完了</span>' : ''}<div class="stage-title"><h3 id="stage-${index}">${esc(label)}</h3>${foodNote(group.rows.some(row => E.isFoodEvent(row.group,state)))}</div></div>
         </header>
         <div class="stage-tasks">${groupRows.map(card).join('')}</div>
       </section>`;
@@ -134,7 +152,6 @@
     const conditions = E.activeOptions(state).filter(([id]) => state.options[id]).map(([,label]) => label);
     const flow = E.activeEvents(state);
     if (state.order === 'time') flow.sort((a,b) => (E.minutes(state.times[a.id]) ?? Infinity) - (E.minutes(state.times[b.id]) ?? Infinity) || a.rank-b.rank);
-    const food = new Set(['preplate', 'sashimiPreplate', 'childMeal', 'obire', 'hov', 'soup', 'breadAfterSoup', 'fish', 'breadAfterFish', 'meat', 'cakeDessert', 'beef', 'tempura', 'dessert']);
     const labelFor = row => groupLabel(row.group);
     const groups = E.timelineGroups(included, state);
     const course = state.course === 'western' ? '洋コース' : '和洋会席';
@@ -147,11 +164,11 @@
       <table class="print-table"><colgroup><col class="p-check-col"><col class="p-time-col"><col></colgroup>
         <thead><tr><th scope="col">済</th><th scope="col">タイミング</th><th scope="col">やること・注意点</th></tr></thead>
         ${groups.map(group => {
-          if (group.event) return `<tbody><tr class="p-stage p-milestone ${food.has(group.event.id) ? 'p-stage-food' : ''}"><th colspan="3" scope="rowgroup">${state.times[group.event.id] ? `<time>${esc(state.times[group.event.id])}</time>` : ''}${esc(group.event.label)}</th></tr></tbody>`;
+          if (group.event) return `<tbody><tr class="p-stage p-milestone ${E.isFoodEvent(group.event.id,state) ? 'p-stage-food' : ''}"><th colspan="3" scope="rowgroup">${state.times[group.event.id] ? `<time>${esc(state.times[group.event.id])}</time>` : ''}${esc(group.event.label)}${foodNote(E.isFoodEvent(group.event.id,state),true)}</th></tr></tbody>`;
           const first = group.rows[0];
           const time = state.order === 'progress' ? state.times[first.group] : first.startTime || first.dueTime;
           const label = [...new Set(group.rows.map(labelFor))].join(' ／ ');
-          return `<tbody><tr class="p-stage ${group.rows.every(row => food.has(row.group)) ? 'p-stage-food' : ''}"><th colspan="3" scope="rowgroup">${time ? `<time>${esc(time)}</time>` : ''}${esc(label)}</th></tr>
+          return `<tbody><tr class="p-stage ${group.rows.every(row => E.isFoodEvent(row.group,state)) ? 'p-stage-food' : ''}"><th colspan="3" scope="rowgroup">${time ? `<time>${esc(time)}</time>` : ''}${esc(label)}${foodNote(group.rows.some(row => E.isFoodEvent(row.group,state)),true)}</th></tr>
             ${group.rows.map(row => `<tr class="p-task ${row.done ? 'p-done' : ''} ${row.title.length + (row.caution || '').length > 700 ? 'long-row' : ''}"><td><span class="p-check">${row.done ? '✓' : ''}</span></td><td>${printTiming(row)}</td><td><strong class="p-task-title">${esc(row.title)}</strong>${printSupplement(row)}</td></tr>`).join('')}</tbody>`;
         }).join('')}
       </table>`;
@@ -196,10 +213,41 @@
     state[input.dataset.state] = input.value; save(); buildPrint();
   }));
   document.addEventListener('click', event => {
+    const eventEdit = event.target.closest('[data-edit-event]');
+    if (eventEdit) openEventEditor(eventEdit.dataset.editEvent);
     const edit = event.target.closest('[data-edit]');
     if (edit) openEditor(edit.dataset.edit);
     const order = event.target.closest('[data-order]');
     if (order) { state.order = order.dataset.order; save(); render(); }
+  });
+  // Reorder after leaving the clock section, so entering hours/minutes or tabbing does not move the focused field.
+  $('#time-fields').addEventListener('focusout', event => {
+    if (!$('#time-fields').contains(event.relatedTarget)) renderTimes();
+  });
+  $('#add-event').addEventListener('click', () => openEventEditor());
+  $('#event-kind').addEventListener('change', updateEventColor);
+  for (const id of ['close-event','cancel-event']) $(`#${id}`).addEventListener('click', () => $('#event-dialog').close());
+  $('#event-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const label = $('#event-name').value.trim();
+    const time = $('#event-time').value;
+    const kind = $('#event-kind').value;
+    if (!label || label.length > 120 || !['progress','food'].includes(kind) || (time && !E.validTime(time))) {
+      $('#event-error').textContent = 'イベント名・区分・時刻を確認してください。'; return;
+    }
+    const id = editingEventId || `event-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+    const existing = state.customEvents.find(e => e.id === id);
+    if (existing) Object.assign(existing, {label, kind});
+    else state.customEvents.push({id, label, kind});
+    state.times[id] = time;
+    save(); renderTimes(); render(); $('#event-dialog').close();
+  });
+  $('#delete-event').addEventListener('click', () => {
+    if (!editingEventId) return;
+    const linked = state.custom.some(row => row.stage === editingEventId);
+    if (!confirm(linked ? 'このイベントを削除しますか？関連する独自ToDoは残し、進行を未指定に戻します。' : 'このイベントを削除しますか？')) return;
+    E.removeCustomEvent(state, editingEventId);
+    save(); renderTimes(); render(); $('#event-dialog').close();
   });
   $('#add-todo').addEventListener('click', () => openEditor());
   for (const id of ['close-dialog','cancel-edit']) $(`#${id}`).addEventListener('click', () => dialog.close());
@@ -224,7 +272,7 @@
     save(); render(); dialog.close();
   });
   $('#reset').addEventListener('click', () => {
-    if (!confirm('このブラウザーに保存した婚礼名・時刻・メモ・必要物などの編集・チェック・独自ToDoを消去します。新しい婚礼を作りますか？')) return;
+    if (!confirm('このブラウザーに保存した婚礼名・時刻・メモ・必要物などの編集・チェック・独自ToDo・追加した進行イベントを消去します。新しい婚礼を作りますか？')) return;
     state = E.initialState(); storageBlocked = false; storageMessage = ''; filter = 'all';
     $('#filter').value = filter; save(); fillSetup(); render();
   });

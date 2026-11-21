@@ -11,7 +11,7 @@ test('Excelの52項目と空欄、変更済みの内容を保持する', () => {
   assert.deepEqual(rows.filter(r => !r.status).map(r => r.row), [45]);
   assert.equal(rows.find(r => r.row === 18).title, 'スープ用のソーサーを準備する');
   assert.equal(rows.find(r => r.row === 18).start, '出勤後');
-  assert.equal(rows.find(r => r.row === 36).deadline, '開場前');
+  assert.equal(rows.find(r => r.row === 36).deadline, '開場まで');
   assert.equal(rows.find(r => r.row === 39).equipment, '出皿・レードル');
   assert.equal(rows.find(r => r.row === 42).equipment, '箸・塩のスプーン');
   assert.equal(rows.filter(r => r.title.startsWith('パンを1Fへ上げる')).length, 2);
@@ -24,7 +24,7 @@ test('2コース×9条件の全1024通りで対象件数と固有項目が一致
     E.options.forEach(([id],i) => { s.options[id]=!!(mask & (1<<i)); });
     const items=E.generate(rows,s);
     const n=Number(s.options.lunch)+Number(s.options.hamburg)+Number(s.options.childCourse);
-    const expected=14+(course==='western'?8:6)+4*Number(s.options.obire)+4*Number(s.options.dessert)
+    const expected=13+(course==='western'?8:6)+4*Number(s.options.obire)+4*Number(s.options.dessert)
       +3*Number(s.options.beef)+3*Number(s.options.tempura)+5*Number(s.options.event)+n+(n?2:0)
       +(course==='mixed' && s.options.bread ? 4 : 0);
     assert.equal(items.length,expected,`${course}/${mask}`);
@@ -222,8 +222,8 @@ test('コースごとの先付け名・順序と刺身先付けの関連作業�
   assert.equal(get(s,28).group,'sashimiPreplate');
   assert.equal(get(s,29).group,'sashimiPreplate');
   assert.equal(get(s,29).title,'刺身を先付けする');
-  assert.equal(get(s,29).deadline,'刺身先付け時');
-  assert.equal(get(s,2).deadline,'前菜・ちらし寿司先付け前');
+  assert.equal(get(s,29).deadline,'刺身先付けまで');
+  assert.equal(get(s,2).deadline,'前菜・ちらし寿司先付けまで');
 });
 
 test('既存の時刻・利用者の編集を保持し、刺身先付け時刻は勝手に補完しない', () => {
@@ -267,4 +267,72 @@ test('パンの時刻を個別に保存し、旧完了時刻と既存メモは�
   assert.equal(restored.custom[0].stage,'fish');
   assert.equal(get(restored,22).startTime,'13:05');assert.equal(get(restored,23).startTime,'13:35');
   assert.equal(get(restored,22).note,'変更済み');assert.equal(get(restored,22).done,true);
+});
+
+
+test('期限の表記を揃え、共通の料理注意をチェック対象から外す', () => {
+  for (const course of ['western','mixed']) {
+    const s=E.initialState(); s.course=course;
+    s.options=Object.fromEntries(E.options.map(([id])=>[id,true]));
+    const items=E.generate(rows,s);
+    assert.ok(!items.some(r=>r.row===13));
+    assert.ok(items.every(r=>!r.deadline.endsWith('前') && !r.deadline.includes('完了')));
+    assert.equal(get(s,14).deadline,'ポアソンまで');
+    assert.equal(get(s,15).deadline,'ビアンドまで');
+    assert.equal(get(s,3).deadline,'開場まで');
+  }
+});
+
+test('天ぷらは提供時刻とは別のセットアップ時刻に合わせる', () => {
+  const s=E.initialState();s.options.tempura=true;
+  s.times={setup:'11:00',tempuraSetup:'13:10',tempura:'13:30'};
+  assert.equal(get(s,42).dueTime,'13:10');
+  assert.equal(get(s,43).startTime,'13:10');
+  assert.equal(get(s,43).dueTime,'13:10');
+  assert.equal(get(s,43).group,'tempuraSetup');
+  assert.ok(E.isFoodEvent('tempura',s));assert.ok(!E.isFoodEvent('tempuraSetup',s));
+  const restored=E.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(restored.times,s.times);
+  restored.options.tempura=false;
+  assert.ok(!E.activeEvents(restored).some(e=>e.id.startsWith('tempura')));
+  assert.equal(restored.times.tempuraSetup,'13:10');
+});
+
+test('追加イベントと関連ToDoは保存復元でき、時刻順・料理区分を共有する', () => {
+  const s=E.initialState();
+  s.customEvents=[{id:'event-food',label:'追加料理',kind:'food'},{id:'event-speech',label:'スピーチ',kind:'progress'}];
+  s.times={open:'12:00',entrance:'12:30','event-food':'12:15','event-speech':'12:15'};
+  s.custom=[{id:'custom-linked',title:'追加料理準備',stage:'event-food'}];
+  s.edits['custom-linked']={done:true,note:'保存するメモ'};
+  const restored=E.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(restored.customEvents,s.customEvents);
+  assert.deepEqual(restored.times,s.times);
+  assert.equal(restored.custom[0].stage,'event-food');
+  assert.deepEqual(E.chronologicalEvents(restored).slice(0,4).map(e=>e.id),['open','event-food','event-speech','entrance']);
+  assert.ok(E.isFoodEvent('event-food',restored));assert.ok(!E.isFoodEvent('event-speech',restored));
+  for(const order of ['progress','time']) {
+    restored.order=order;
+    const groups=E.timelineGroups(E.generate(rows,restored),restored);
+    assert.equal(groups.filter(g=>g.event?.id==='event-food'||g.rows.some(r=>r.group==='event-food')).length,1);
+    assert.ok(groups.some(g=>g.event?.id==='event-speech'));
+  }
+  E.removeCustomEvent(restored,'event-food');
+  assert.equal(restored.times['event-food'],undefined);
+  assert.equal(restored.custom[0].stage,'');
+  assert.equal(restored.custom[0].title,'追加料理準備');
+  assert.equal(restored.edits['custom-linked'].note,'保存するメモ');
+  assert.ok(restored.edits['custom-linked'].done);
+  assert.ok(!E.activeEvents(restored).some(e=>e.id==='event-food'));
+});
+
+test('旧保存データと不正・重複する追加イベントを安全に扱う', () => {
+  const old=E.initialState();delete old.customEvents;
+  old.times.open='12:00';old.edits['excel-2']={note:'前回の入力',done:true};
+  assert.deepEqual(E.normalizeState(old).customEvents,[]);
+  assert.deepEqual(E.normalizeState(old).edits,old.edits);
+  old.customEvents=[{id:'event-a',label:'正常',kind:'food'},{id:'event-a',label:'重複',kind:'progress'},{id:'event-" onclick="x',label:'不正',kind:'food'},{id:'open',label:'上書き',kind:'food'},{id:'event-b',label:'区分不正',kind:'other'}];
+  old.times['event-a']='99:00';
+  const s=E.normalizeState(old);
+  assert.deepEqual(s.customEvents,[{id:'event-a',label:'正常',kind:'food'}]);
+  assert.equal(s.times['event-a'],undefined);
 });

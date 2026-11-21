@@ -13,11 +13,12 @@ function app(state) {
     if (!nodes.has(key)) nodes.set(key, {
       innerHTML:'', textContent:'', value:'', style:{}, dataset:{}, handlers:{},
       addEventListener(type, handler) { this.handlers[type] = handler; },
-      setAttribute(){}, focus(){}, showModal(){}, close(){}
+      setAttribute(){}, focus(){}, showModal(){}, close(){}, contains(target){return !!target?.insideTimes;}, classList:{toggle(){}}
     });
     return nodes.get(key);
   }
   const context = {
+    confirm:()=>true,
     window: { PassageEngine:E, PassageChecklist:rows, matchMedia:()=>({matches:true}), addEventListener(){} },
     document: {querySelector:node, querySelectorAll:()=>[], addEventListener:(type, handler)=>{handlers[type]=handler;}},
     localStorage: {getItem:()=>saved, setItem:(key, value)=>{saved=value;}}
@@ -157,14 +158,14 @@ test('印刷でもコース別の先付け名と空のセットアップを維�
   assert.equal((html.match(/<tr class="p-task /g)||[]).length,E.generate(rows,s).length);
 });
 
-test('時刻欄・タイムライン・PDFのフローが同じ進行順になる', () => {
+test('時刻欄は時間順に並べ、フローの進行順は維持する', () => {
   for(const course of ['western','mixed']) {
     const s=E.initialState();s.course=course;
     // Different clock values must not reorder progress mode.
     s.times={open:'15:00',entrance:'14:00'};
     const a=app(s), events=E.activeEvents(s);
     const inputs=[...a.node('#time-fields').innerHTML.matchAll(/data-time="([^"]+)"/g)].map(m=>m[1]);
-    assert.deepEqual(inputs,events.map(e=>e.id));
+    assert.deepEqual(inputs,['entrance','open',...events.filter(e=>!['entrance','open'].includes(e.id)).map(e=>e.id)]);
     const headings=[...a.node('#todo-list').innerHTML.matchAll(/<h3 id="stage-\d+">([^<]+)<\/h3>/g)].map(m=>m[1]);
     assert.deepEqual(headings.slice(0,events.length),events.map(e=>e.label));
     const flow=a.node('#print-document').innerHTML.split('<div class="print-flow">')[1].split('</div>')[0];
@@ -172,4 +173,59 @@ test('時刻欄・タイムライン・PDFのフローが同じ進行順にな�
     assert.deepEqual(labels,events.map(e=>e.label));
     assert.equal(Number(a.node('#total-count').textContent),E.generate(rows,s).length);
   }
+});
+
+
+test('追加イベントの作成・編集・料理区分・再読込・削除が画面とPDFに反映される', () => {
+  let a=app(E.initialState());
+  a.node('#add-event').handlers.click();
+  a.node('#event-name').value='追加デザート';a.node('#event-time').value='13:15';a.node('#event-kind').value='food';
+  a.node('#event-form').handlers.submit({preventDefault(){}});
+  let saved=a.saved();const id=saved.customEvents[0].id;
+  assert.equal(saved.customEvents[0].label,'追加デザート');assert.equal(saved.times[id],'13:15');
+  for(const key of ['#time-fields','#todo-list','#print-document']) assert.ok(a.node(key).innerHTML.includes('追加デザート'));
+  a=app(saved);
+  a.handlers.click({target:{closest:sel=>sel==='[data-edit-event]'?{dataset:{editEvent:id}}:null}});
+  assert.equal(a.node('#event-name').value,'追加デザート');
+  a.node('#event-name').value='記念撮影';a.node('#event-kind').value='progress';a.node('#event-time').value='14:00';
+  a.node('#event-form').handlers.submit({preventDefault(){}});
+  saved=a.saved();assert.equal(saved.customEvents[0].kind,'progress');assert.equal(saved.times[id],'14:00');
+  assert.ok(!a.node('#print-document').innerHTML.includes('追加デザート'));
+  a.node('#delete-event').handlers.click();
+  assert.equal(a.saved().customEvents.length,0);assert.equal(a.saved().times[id],undefined);
+  for(const key of ['#time-fields','#todo-list','#print-document']) assert.ok(!a.node(key).innerHTML.includes('記念撮影'));
+});
+
+test('イベント名のHTMLは時刻欄・フロー・PDF・ToDo進行選択肢で実行されない', () => {
+  const s=E.initialState();
+  s.customEvents=[{id:'event-xss',label:'<img src=x onerror=alert(1)>',kind:'food'}];s.times['event-xss']='12:10';
+  const a=app(s);a.node('#add-todo').handlers.click();
+  for(const key of ['#time-fields','#todo-list','#print-document','#edit-stage']) {
+    assert.ok(a.node(key).innerHTML.includes('&lt;img'));
+    assert.ok(!a.node(key).innerHTML.includes('<img'));
+  }
+});
+
+test('共通の料理注意は見出しの補足になり、ToDo件数とチェックから外れる', () => {
+  const s=E.initialState();s.options.obire=true;
+  const a=app(s),html=a.node('#todo-list').innerHTML;
+  assert.ok(!html.includes('data-id="excel-13"'));
+  assert.ok(!html.includes('披露宴中・各料理の前後'));
+  assert.ok(html.includes('</h3><small class="food-note">料理をかけるタイミングを判断・共有'));
+  assert.ok(a.node('#print-document').innerHTML.includes('尾鰭椀<small class="p-food-note">'));
+  assert.equal(Number(a.node('#total-count').textContent),E.generate(rows,s).length);
+  assert.match(a.node('#time-fields').innerHTML, /time-entry is-food"><label class="time-field">尾鰭椀/);
+  assert.match(a.node('#time-fields').innerHTML, /time-entry "><label class="time-field">開場/);
+});
+
+test('時刻欄の入力中は並び替えず、欄を離れたら保存した時刻で整列する', () => {
+  const a=app(E.initialState());
+  const before=a.node('#time-fields').innerHTML;
+  a.handlers.change({target:{dataset:{time:'fish'},value:'12:00'}});
+  assert.equal(a.saved().times.fish,'12:00');
+  a.node('#time-fields').handlers.focusout({relatedTarget:{insideTimes:true}});
+  assert.equal(a.node('#time-fields').innerHTML,before);
+  a.node('#time-fields').handlers.focusout({relatedTarget:null});
+  const ids=[...a.node('#time-fields').innerHTML.matchAll(/data-time="([^"]+)"/g)].map(m=>m[1]);
+  assert.equal(ids[0],'fish');
 });

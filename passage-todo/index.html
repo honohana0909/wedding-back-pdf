@@ -14,12 +14,12 @@
 <body>
 <div class="screen-app">
   <header class="site-header">
-    <a class="brand" href="#"><span>当日の作業メモ<small>WEDDING CHECKLIST</small></span></a>
+    <a class="brand" href="#"><span>当日の作業メモ<small>BACK CHECKLIST</small></span></a>
     <div class="header-actions"><span id="save-status" role="status">このブラウザーに自動保存</span><button class="button primary" id="print-top">印刷・PDF保存</button></div>
   </header>
   <main>
     <section class="intro">
-      <div><p class="eyebrow">YOUR DAY, IN ORDER</p><h1>準備から、お開きまで。</h1><p>時刻を見て、進行を追って、ひとつずつ。婚礼当日の仕事のレシピ。</p></div>
+      <div><p class="eyebrow">YOUR DAY, IN ORDER</p><h1>当日の流れの確認</h1><p>時刻と進行に合わせて、必要な仕事を順番に確認できます。</p></div>
     </section>
     <div class="workspace">
       <aside class="setup-panel" aria-label="当日の設定">
@@ -33,9 +33,10 @@
           <fieldset><legend>当日の条件 <small>該当するものを選択</small></legend><div id="option-fields" class="option-grid"></div></fieldset>
           <div class="section-divider"></div>
           <div class="section-title"><h3>主要進行時刻</h3><span class="tiny-label">24時間表記</span></div>
-          <p class="hint">決まっている時刻だけ入力してください。空欄は自動補完しません。</p>
+          <p class="hint">時刻の早い順に表示します。未入力は末尾。同時刻は進行順です。入力欄を離れると並び替えます。</p>
           <div id="time-fields" class="time-fields"></div>
-          <p class="hint">同日内の進行に対応。オプションの順序は当日の時刻で調整してください。</p>
+          <button type="button" id="add-event" class="button secondary add-event">＋ 進行イベントを追加</button>
+          <p class="hint">青い時刻欄は料理です。同日内の進行に対応し、空欄は自動補完しません。フローの「時刻順」で当日の時刻に沿って確認できます。</p>
           <details class="source-help"><summary>保存とリセット</summary><p>入力内容は、この端末・ブラウザーに自動保存されます。画面を閉じても残りますが、別の端末には同期されません。</p><p>サイトの保存データを消すと入力内容も消えます。共有端末では、使用後に下のボタンで消去してください。</p><button id="reset" class="text-button danger">入力を消去して新しい婚礼を作る</button></details>
         </div>
         </details>
@@ -70,6 +71,16 @@
     <p class="hint">変更はこのブラウザーの今回の婚礼に保存されます。注意点はPDFにも掲載します。</p>
     <p id="edit-error" role="alert"></p>
     <div class="dialog-actions"><button type="button" id="delete-custom" class="text-button danger">このToDoを削除</button><button type="button" id="cancel-edit" class="button secondary">キャンセル</button><button type="submit" class="button primary">保存する</button></div>
+  </form>
+</dialog>
+<dialog id="event-dialog" aria-labelledby="event-dialog-title">
+  <form id="event-form">
+    <div class="dialog-heading"><h2 id="event-dialog-title">進行イベントを追加</h2><button type="button" class="icon-button" id="close-event" aria-label="閉じる">×</button></div>
+    <label>イベント名<input id="event-name" required maxlength="120" placeholder="例：記念品贈呈"></label>
+    <div class="two-fields"><label>区分<select id="event-kind"><option value="progress">進行</option><option value="food">料理</option></select></label><label id="event-clock-label">時刻<input type="time" id="event-time"></label></div>
+    <p class="hint">追加したイベントはフロー・PDFにも表示します。時刻は後から入力できます。</p>
+    <p id="event-error" role="alert"></p>
+    <div class="dialog-actions"><button type="button" id="delete-event" class="text-button danger" hidden>このイベントを削除</button><button type="button" id="cancel-event" class="button secondary">キャンセル</button><button type="submit" class="button primary">保存する</button></div>
   </form>
 </dialog>
 <noscript>このページを使うには、ブラウザーのJavaScriptを有効にしてください。</noscript>
